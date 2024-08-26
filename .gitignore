@@ -60,3 +60,5 @@ debian/perftest
 
 .cache
 compile_commands.json
+
+man/
