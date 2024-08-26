@@ -6,7 +6,7 @@ mn_ssh_name='server'
 # todo try --use-hugepages
 
 cmd=(
-	../ib_read_bw
+	/users/yashlala/ofed-perftest-24.07.0/ib_read_bw 
 	--rdma_cm --mtu 4096 --size 4096 --rx-depth 1 
 	--report_gbits --report-both --noPeak --cpu_util
 	--duration 60
