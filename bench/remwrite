@@ -1,6 +1,7 @@
 #!/bin/zsh
 
 mn_data_ip=10.10.1.2
+mn_ssh_name='server'
 
 # todo try --use-hugepages
 
@@ -15,9 +16,9 @@ cmd=(
 
 rm -f /tmp/{tx,rx}.{pre,post}
 
-ssh fbss-win -- $cmd $@ &>write.server.out &  
-server_pid=$! 
-sleep 1 
+ssh $mn_ssh_name -- $cmd $@ &>write.server.out &
+server_pid=$!
+sleep 1
 
 $cmd $@ $mn_data_ip &>write.client.out 
 
