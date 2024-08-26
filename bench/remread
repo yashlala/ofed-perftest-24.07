@@ -1,0 +1,28 @@
+#!/bin/zsh
+
+mn_data_ip=10.10.1.2
+
+# todo try --use-hugepages
+
+cmd=(
+	../ib_read_bw
+	--rdma_cm --mtu 4096 --size 4096 --rx-depth 1 
+	--report_gbits --report-both --noPeak --cpu_util
+	--duration 60
+	--port 18515
+#	--iters 500
+)
+
+rm -f /tmp/{tx,rx}.{pre,post}
+
+ssh fbss-win -- $cmd $@ &>read.server.out &  
+server_pid=$! 
+sleep 1 
+
+$cmd $@ $mn_data_ip &>read.client.out 
+
+wait $server_pid
+
+printf 'tx:\t%d\n' $(( $(cat /tmp/read.tx.post) - $(cat /tmp/read.tx.pre) ))
+printf 'rx:\t%d\n' $(( $(cat /tmp/read.rx.post) - $(cat /tmp/read.rx.pre) ))
+rm /tmp/read.{tx,rx}.{pre,post}

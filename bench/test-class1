@@ -1,0 +1,35 @@
+#!/bin/zsh
+
+mkdir -p class1/
+
+local dir='class1/'
+for qp in 1 2 $(seq 4 4 64); do 
+	for txdepth in 8; do 
+		for postlist in $txdepth; do 
+			local schema="qp${qp}-txd${txdepth}-pl${postlist}"
+
+			./remread --qp $qp --tx-depth $txdepth --post_list $postlist > "$dir/hwcounter.read.$schema.out"
+			mv read.client.out "$dir/client.read.$schema.out"
+			mv read.server.out "$dir/server.read.$schema.out"
+		done
+	done
+done
+
+exit
+
+local dir='class1/write/unidir/'
+txdepths=(1 2 4 16 64 128 256 512)
+for qp in 1 2 4 8 16 32; do 
+	for txdepth in $txdepths; do 
+		for postlist in $txdepth; do 
+			if (( postlist > txdepth )); then
+				continue
+			fi
+			local schema="qp${qp}-txd${txdepth}-pl${postlist}"
+
+			./remwrite --qp $qp --tx-depth $txdepth --post_list $postlist >"$dir/hwcounter.write.$schema.out"
+			mv write.client.out "$dir/client.write.$schema.out"
+			mv write.server.out "$dir/server.write.$schema.out"
+		done
+	done
+done

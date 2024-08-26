@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+mkdir -p class3
+
+dir='class3'
+txdepth=1024
+postlist=$txdepth
+
+for fhqp in 1 16 32 64; do 
+	for cnqp in 1 4 8; do 
+		local schema="fhqp${fhqp}-cnqp${cnqp}-tx${txdepth}-pl${postlist}"
+		./remread --qp $fhqp --tx-depth 1 --post_list 1 > "$dir/hwcounter.read.$schema.out" & 
+		./remwrite --qp $cnqp --tx-depth $txdepth --post_list $postlist > "$dir/hwcounter.write.$schema.out" & 
+		wait
+	done
+done
