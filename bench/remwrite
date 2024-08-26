@@ -14,7 +14,7 @@ cmd=(
 #	--iters 500
 )
 
-rm -f /tmp/{tx,rx}.{pre,post}
+rm -f /tmp/write.hwcounter.{pre,post}
 
 ssh $mn_ssh_name -- $cmd $@ &>write.server.out &
 server_pid=$!
@@ -23,7 +23,3 @@ sleep 1
 $cmd $@ $mn_data_ip &>write.client.out 
 
 wait $server_pid
-
-printf 'tx:\t%d\n' $(( $(cat /tmp/write.tx.post) - $(cat /tmp/write.tx.pre) ))
-printf 'rx:\t%d\n' $(( $(cat /tmp/write.rx.post) - $(cat /tmp/write.rx.pre) ))
-rm /tmp/write.{tx,rx}.{pre,post}

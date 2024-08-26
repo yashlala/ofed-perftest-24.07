@@ -3355,24 +3355,13 @@ static int capture_ethtool_pre(VerbType verb)
 		 return SUCCESS;
 
 	if (verb == READ) {
-		cmd = "sudo ethtool -S enp0s9f0 | grep tx_bytes_phy | awk '{print $2}' > /tmp/read.tx.pre";
+		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/read.hwcounter.pre";
 	} else {
-		cmd = "sudo ethtool -S enp0s9f0 | grep tx_bytes_phy | awk '{print $2}' > /tmp/write.tx.pre";
+		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/write.hwcounter.pre";
 	}
 	err = system(cmd);
 	if (err) {
-		perror("Failed: Couldn't capture rx!");
-		return FAILURE;
-	}
-
-	if (verb == READ) {
-		cmd = "sudo ethtool -S enp0s9f0 | grep rx_bytes_phy | awk '{print $2}' > /tmp/read.rx.pre";
-	} else {
-		cmd = "sudo ethtool -S enp0s9f0 | grep rx_bytes_phy | awk '{print $2}' > /tmp/write.rx.pre";
-	}
-	err = system(cmd);
-	if (err) {
-		perror("Failed: Couldn't capture rx!");
+		perror("Failed: Couldn't capture hardware counters!");
 		return FAILURE;
 	}
 	return SUCCESS;
@@ -3387,24 +3376,13 @@ static int capture_ethtool_post(VerbType verb)
 		 return SUCCESS;
 
 	if (verb == READ) {
-		cmd = "sudo ethtool -S enp0s9f0 | grep tx_bytes_phy | awk '{print $2}' > /tmp/read.tx.post";
+		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/read.hwcounter.post";
 	} else {
-		cmd = "sudo ethtool -S enp0s9f0 | grep tx_bytes_phy | awk '{print $2}' > /tmp/write.tx.post";
+		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/write.hwcounter.post";
 	}
 	err = system(cmd);
 	if (err) {
-		perror("Failed: Couldn't capture rx!");
-		return FAILURE;
-	}
-
-	if (verb == READ) {
-		cmd = "sudo ethtool -S enp0s9f0 | grep rx_bytes_phy | awk '{print $2}' > /tmp/read.rx.post";
-	} else {
-		cmd = "sudo ethtool -S enp0s9f0 | grep rx_bytes_phy | awk '{print $2}' > /tmp/write.rx.post";
-	}
-	err = system(cmd);
-	if (err) {
-		perror("Failed: Couldn't capture rx!");
+		perror("Failed: Couldn't capture hardware counters!");
 		return FAILURE;
 	}
 	return SUCCESS;
