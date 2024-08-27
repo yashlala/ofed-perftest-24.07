@@ -19,6 +19,8 @@
 #include <sys/stat.h>
 #endif
 
+#define MLX_IFACE "ens2f0np0"
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -3355,9 +3357,9 @@ static int capture_ethtool_pre(VerbType verb)
 		 return SUCCESS;
 
 	if (verb == READ) {
-		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/read.hwcounter.pre";
+		cmd = "sudo ethtool -S " MLX_IFACE " > /tmp/read.hwcounter.pre";
 	} else {
-		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/write.hwcounter.pre";
+		cmd = "sudo ethtool -S " MLX_IFACE " > /tmp/write.hwcounter.pre";
 	}
 	err = system(cmd);
 	if (err) {
@@ -3376,9 +3378,9 @@ static int capture_ethtool_post(VerbType verb)
 		 return SUCCESS;
 
 	if (verb == READ) {
-		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/read.hwcounter.post";
+		cmd = "sudo ethtool -S " MLX_IFACE "> /tmp/read.hwcounter.post";
 	} else {
-		cmd = "sudo ethtool -S enp65s0f0np0 > /tmp/write.hwcounter.post";
+		cmd = "sudo ethtool -S " MLX_IFACE "> /tmp/write.hwcounter.post";
 	}
 	err = system(cmd);
 	if (err) {
