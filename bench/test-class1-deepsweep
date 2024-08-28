@@ -1,13 +1,14 @@
 #!/bin/zsh
 
-mkdir -p class1/
+dir='class1-deepsweep'
 
-# We already have txdepth 1 and 8 so skip those
+mkdir -p $dir
 
-local dir='class1/read/unidir/'
+sudo cpupower frequency-set -g performance
+ssh server -- sudo cpupower frequency-set -g performance
+
 for qp in 1 2 $(seq 4 4 64); do 
-	for txdepth in 1 8; do 
-	#for txdepth in 2 4 16 32 64; do 
+	for txdepth in 1 2 4 8 16 32 64; do 
 		for postlist in $txdepth; do 
 			local schema="qp${qp}-txd${txdepth}-pl${postlist}"
 
@@ -16,25 +17,6 @@ for qp in 1 2 $(seq 4 4 64); do
 			mv /tmp/read.hwcounter.post "$dir/hwpost.read.$schema.out"
 			mv read.client.out "$dir/client.read.$schema.out"
 			mv read.server.out "$dir/server.read.$schema.out"
-		done
-	done
-done
-
-exit
-
-local dir='class1/write/unidir/'
-txdepths=(1 2 4 16 64 128 256 512)
-for qp in 1 2 4 8 16 32; do 
-	for txdepth in $txdepths; do 
-		for postlist in $txdepth; do 
-			if (( postlist > txdepth )); then
-				continue
-			fi
-			local schema="qp${qp}-txd${txdepth}-pl${postlist}"
-
-			./remwrite --qp $qp --tx-depth $txdepth --post_list $postlist >"$dir/hwcounter.write.$schema.out"
-			mv write.client.out "$dir/client.write.$schema.out"
-			mv write.server.out "$dir/server.write.$schema.out"
 		done
 	done
 done
