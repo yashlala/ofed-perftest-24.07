@@ -473,8 +473,8 @@ struct perftest_parameters {
 	int				tx_depth;
 	uint8_t				qp_timeout;
 	uint8_t				sl;
-	int				gid_index;
-	int				gid_index2;
+	int				gid_index; // used during single+dual port mode
+	int				gid_index2; // used during dual port mode
 	int				use_gid_user;
 	uint8_t				source_mac[6];
 	uint8_t				dest_mac[6];

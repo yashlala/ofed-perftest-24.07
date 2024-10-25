@@ -207,7 +207,7 @@ struct pingpong_context {
 	uint64_t				send_qp_buff_size;
 	uint64_t				flow_buff_size;
 	int					tx_depth;
-	uint64_t				*scnt;
+	uint64_t				*send_count;
 	uint64_t				*ccnt;
 	int					is_contig_supported;
 	uint32_t				*r_dctn;

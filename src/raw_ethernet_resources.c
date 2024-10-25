@@ -1007,10 +1007,10 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 
 		for (index = 0; index < user_param->num_of_qps; index++) {
 
-			while (((ctx->scnt[index] < iters) || ((firstRx == OFF) && (user_param->test_type == DURATION))) &&
-					((ctx->scnt[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth) && (rcnt_for_qp[index] - ctx->scnt[index] > 0)) {
+			while (((ctx->send_count[index] < iters) || ((firstRx == OFF) && (user_param->test_type == DURATION))) &&
+					((ctx->send_count[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth) && (rcnt_for_qp[index] - ctx->send_count[index] > 0)) {
 
-				if (user_param->post_list == 1 && (ctx->scnt[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)) {
+				if (user_param->post_list == 1 && (ctx->send_count[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)) {
 						ctx->wr[index].send_flags &= ~IBV_SEND_SIGNALED;
 				}
 
@@ -1024,22 +1024,22 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 				err = ibv_post_send(ctx->qp[index], &ctx->wr[index*user_param->post_list], &bad_wr);
 
 				if(err) {
-					fprintf(stderr, "Couldn't post send: qp %d scnt=%lu \n", index, ctx->scnt[index]);
+					fprintf(stderr, "Couldn't post send: qp %d scnt=%lu \n", index, ctx->send_count[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
 
 				if (user_param->post_list == 1 && user_param->size <= (ctx->cycle_buffer / 2)) {
 						increase_loc_addr(ctx->wr[index].sg_list, user_param->size,
-								  ctx->scnt[index], ctx->my_addr[index], 0,
+								  ctx->send_count[index], ctx->my_addr[index], 0,
 								  ctx->cache_line_size, ctx->cycle_buffer);
 				}
-				ctx->scnt[index] += user_param->post_list;
+				ctx->send_count[index] += user_param->post_list;
 				totscnt += user_param->post_list;
 
 				if (user_param->post_list == 1 &&
-					(ctx->scnt[index]%user_param->cq_mod == (user_param->cq_mod - 1) ||
-						(user_param->test_type == ITERATIONS && ctx->scnt[index] == (iters - 1)))) {
+					(ctx->send_count[index]%user_param->cq_mod == (user_param->cq_mod - 1) ||
+						(user_param->test_type == ITERATIONS && ctx->send_count[index] == (iters - 1)))) {
 							ctx->wr[index].send_flags |= IBV_SEND_SIGNALED;
 				}
 			}

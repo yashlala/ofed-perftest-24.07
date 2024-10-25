@@ -2166,6 +2166,7 @@ static void ctx_set_max_inline(struct ibv_context *context,struct perftest_param
 		return;
 	}
 
+	// y: We don't set this flag during runtime, so ignore it.
 	if (user_param->inline_size == DEF_INLINE) {
 		if (user_param->memory_type == MEMORY_CUDA){
 			user_param->inline_size = 0;
