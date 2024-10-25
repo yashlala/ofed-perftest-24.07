@@ -525,15 +525,25 @@ static int new_post_write_inl_rc(struct pingpong_context *ctx, int index,
 	return _new_post_send(ctx, user_param, 1, index, IBV_QPT_RC, opcode_verbs_array[user_param->verb], RC, 0);
 }
 
+static bool new_post_read_sge_rc_triggered = false;
 static int new_post_read_sge_rc(struct pingpong_context *ctx, int index,
 	struct perftest_parameters *user_param)
 {
+	if (!new_post_read_sge_rc_triggered) {
+		printf("shoop: new_post_read_sge_rc triggered\n");
+		new_post_read_sge_rc_triggered = true;
+	}
 	return _new_post_send(ctx, user_param, 0, index, IBV_QPT_RC, IBV_WR_RDMA_READ, RC, 0);
 }
 
+static bool new_post_read_sge_enc_rc_triggered = false;
 static int new_post_read_sge_enc_rc(struct pingpong_context *ctx, int index,
 	struct perftest_parameters *user_param)
 {
+	if (!new_post_read_sge_enc_rc_triggered) {
+		printf("shoop: new_post_read_sge_enc_rc triggered\n");
+		new_post_read_sge_enc_rc_triggered = true;
+	}
 	return _new_post_send(ctx, user_param, 0, index, IBV_QPT_RC, IBV_WR_RDMA_READ, RC, 1);
 }
 
@@ -640,9 +650,14 @@ static int new_post_write_inl_xrc(struct pingpong_context *ctx, int index,
 	return _new_post_send(ctx, user_param, 1, index, IBV_QPT_XRC_SEND, opcode_verbs_array[user_param->verb], XRC, 0);
 }
 
+static bool new_post_read_sge_xrc_triggered = false;
 static int new_post_read_sge_xrc(struct pingpong_context *ctx, int index,
 	struct perftest_parameters *user_param)
 {
+	if (!new_post_read_sge_xrc_triggered) {
+		printf("shoop: new_post_read_sge_xrc triggered\n");
+		new_post_read_sge_xrc_triggered = true;
+	}
 	return _new_post_send(ctx, user_param, 0, index, IBV_QPT_XRC_SEND, IBV_WR_RDMA_READ, XRC, 0);
 }
 
