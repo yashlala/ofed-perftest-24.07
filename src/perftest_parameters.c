@@ -872,6 +872,9 @@ static void init_perftest_params(struct perftest_parameters *user_param)
 	user_param->has_source_ip	= 0;
 	user_param->use_write_with_imm	= 0;
 	user_param->congest_type	= OFF;
+
+	printf("shoop: cache line size is %d, cycle buffer is %d",
+			user_param->cache_line_size, user_param->cycle_buffer);
 }
 
 static int open_file_write(const char* file_path)
