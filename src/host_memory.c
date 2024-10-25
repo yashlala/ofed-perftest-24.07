@@ -94,6 +94,8 @@ int host_memory_allocate_buffer(struct memory_ctx *ctx, int alignment, uint64_t 
 int host_memory_free_buffer(struct memory_ctx *ctx, int dmabuf_fd, void *addr, uint64_t size) {
 	struct host_memory_ctx *host_ctx = container_of(ctx, struct host_memory_ctx, base);
 
+	printf("shoop: Freeing lmem buf of size %lu\n", size);
+
 	if (host_ctx->use_hugepages) {
 		shmdt(addr);
 	} else {
