@@ -8,6 +8,7 @@ mn_ssh_name='fbss4'
 cmd=(
 	timeout 
 	3m
+	taskset -c 2 
 	/home/sslee/ofed-perftest-24.07/ib_read_bw 
 	--rdma_cm --mtu 4096 --size 4096 --rx-depth 1 
 	--report_gbits --report-both --noPeak --cpu_util
