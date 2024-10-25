@@ -660,6 +660,8 @@ static int new_post_atomic_cs_sge_xrc(struct pingpong_context *ctx, int index,
 #endif
 #endif
 
+static bool printed_send_type = false;
+
 /* post_send_method.
  *
  * Description :
@@ -679,10 +681,19 @@ static inline int post_send_method(struct pingpong_context *ctx, int index,
 	struct perftest_parameters *user_param)
 {
 	#ifdef HAVE_IBV_WR_API
-	if (!user_param->use_old_post_send)
+	if (!user_param->use_old_post_send) {
+		if (!printed_send_type) {
+			printf("shoop: using ibv work request API\n");
+			printed_send_type = true;
+		}
 		return (*ctx->new_post_send_work_request_func_pointer)(ctx, index, user_param);
+	}
 	#endif
 	struct ibv_send_wr 	*bad_wr = NULL;
+	if (!printed_send_type) {
+		printf("shoop: using standard ibv_post_send API\n");
+		printed_send_type = true;
+	}
 	return ibv_post_send(ctx->qp[index], &ctx->wr[index*user_param->post_list], &bad_wr);
 
 }
@@ -960,6 +971,7 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
 {
 	struct ibv_context *context;
 
+	// This macro is enabled.
 #ifdef HAVE_AES_XTS
 	if(user_param->aes_xts){
 		struct mlx5dv_crypto_login_attr login_attr = {};
@@ -1040,9 +1052,9 @@ int alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_para
 		memset(user_param->tcompleted, 0, sizeof(cycles_t)*tarr_size);
 		ALLOC(ctx->my_addr,uint64_t,user_param->num_of_qps);
 		ALLOC(ctx->rem_addr,uint64_t,user_param->num_of_qps);
-		ALLOC(ctx->scnt,uint64_t,user_param->num_of_qps);
+		ALLOC(ctx->send_count,uint64_t,user_param->num_of_qps);
 		ALLOC(ctx->ccnt,uint64_t,user_param->num_of_qps);
-		memset(ctx->scnt, 0, user_param->num_of_qps * sizeof (uint64_t));
+		memset(ctx->send_count, 0, user_param->num_of_qps * sizeof (uint64_t));
 		memset(ctx->ccnt, 0, user_param->num_of_qps * sizeof (uint64_t));
 
 	} else if ((user_param->tst == BW || user_param->tst == LAT_BY_BW)
@@ -1150,8 +1162,8 @@ void dealloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_p
 			free(ctx->my_addr);
 		if (ctx->rem_addr != NULL)
 			free(ctx->rem_addr);
-		if (ctx->scnt != NULL)
-			free(ctx->scnt);
+		if (ctx->send_count != NULL)
+			free(ctx->send_count);
 		if (ctx->ccnt != NULL)
 			free(ctx->ccnt);
 
@@ -1371,7 +1383,7 @@ int destroy_ctx(struct pingpong_context *ctx,
 		free(user_param->tcompleted);
 		free(ctx->my_addr);
 		free(ctx->rem_addr);
-		free(ctx->scnt);
+		free(ctx->send_count);
 		free(ctx->ccnt);
 	}
 	else if ((user_param->tst == BW || user_param->tst == LAT_BY_BW ) && user_param->verb == SEND && user_param->machine == SERVER) {
@@ -2198,6 +2210,7 @@ int create_qp_main(struct pingpong_context *ctx,
 	return ret;
 }
 
+// QP create (not initiated yet; that's through RDMACM later).
 struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		struct perftest_parameters *user_param, int qp_index)
 {
@@ -2987,7 +3000,7 @@ void ctx_set_send_reg_wqes(struct pingpong_context *ctx,
 
 		if (user_param->tst == BW || user_param->tst == LAT_BY_BW) {
 
-			ctx->scnt[i] = 0;
+			ctx->send_count[i] = 0;
 			ctx->ccnt[i] = 0;
 			ctx->my_addr[i] = (uintptr_t)ctx->buf[i];
 			if (user_param->verb != SEND)
@@ -3393,10 +3406,10 @@ static int capture_ethtool_post(VerbType verb)
 
 int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_param)
 {
-	uint64_t           	totscnt = 0;
-	uint64_t       	   	totccnt = 0;
+	uint64_t           	total_send_count = 0;
+	uint64_t       	   	total_recv_cqe_count = 0;
 	int                	i = 0;
-	int			index;
+	int			qp_index;
 	int			ne = 0;
 	uint64_t	   	tot_iters;
 	int			err = 0;
@@ -3407,7 +3420,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 	double 			gap_time = 0;	/* in usec */
 	cycles_t 		gap_cycles = 0;	/* in cycles */
 	cycles_t 		gap_deadline = 0;
-	double 		number_of_bursts = 0;
+	double			number_of_bursts = 0;
 	int 			burst_iter = 0;
 	int 			is_sending_burst = 0;
 	int 			cpu_mhz = 0;
@@ -3483,44 +3496,37 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 		 goto cleaning;
 
 	/* main loop for posting */
-	while (totscnt < tot_iters  || totccnt < tot_iters ||
+	while (total_send_count < tot_iters  || total_recv_cqe_count < tot_iters ||
 		(user_param->test_type == DURATION && user_param->state != END_STATE) ) {
 
 		/* main loop to run over all the qps and post each time n messages */
-		for (index =0 ; index < num_of_qps ; index++) {
-			if (user_param->rate_limit_type == SW_RATE_LIMIT && is_sending_burst == 0) {
-				if (gap_deadline > get_cycles()) {
-					/* Go right to cq polling until gap time is over. */
-					continue;
-				}
-				gap_deadline = get_cycles() + gap_cycles;
-				is_sending_burst = 1;
-				burst_iter = 0;
-			}
-			while ((ctx->scnt[index] < user_param->iters || user_param->test_type == DURATION) &&
-					(ctx->scnt[index] + user_param->post_list) <= (user_param->tx_depth + ctx->ccnt[index]) &&
+		for (qp_index = 0 ; qp_index < num_of_qps ; qp_index++) {
+
+			while ((ctx->send_count[qp_index] < user_param->iters || user_param->test_type == DURATION) &&
+					(ctx->send_count[qp_index] + user_param->post_list) <= (user_param->tx_depth + ctx->ccnt[qp_index]) &&
 					!((user_param->rate_limit_type == SW_RATE_LIMIT ) && is_sending_burst == 0)) {
 
 				if (ctx->send_rcredit) {
-					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index];
+					uint32_t swindow = ctx->send_count[qp_index] + user_param->post_list - ctx->credit_buf[qp_index];
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
-				if (user_param->post_list == 1 && (ctx->scnt[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)
-					&& !(ctx->scnt[index] == (user_param->iters - 1) && user_param->test_type == ITERATIONS)) {
+				if (user_param->post_list == 1 && (ctx->send_count[qp_index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)
+					&& !(ctx->send_count[qp_index] == (user_param->iters - 1) && user_param->test_type == ITERATIONS)) {
 
-					ctx->wr[index].send_flags &= ~IBV_SEND_SIGNALED;
+					ctx->wr[qp_index].send_flags &= ~IBV_SEND_SIGNALED;
 				}
 
 				if (user_param->noPeak == OFF)
-					user_param->tposted[totscnt] = get_cycles();
+					user_param->tposted[total_send_count] = get_cycles();
 
 				if (user_param->test_type == DURATION && user_param->state == END_STATE)
 					break;
 
-				err = post_send_method(ctx, index, user_param);
+				// Perform the RDMA Send
+				err = post_send_method(ctx, qp_index, user_param);
 				if (err) {
-					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
+					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",qp_index,ctx->send_count[qp_index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
@@ -3539,38 +3545,32 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 
 				/* in multiple flow scenarios we will go to next cycle buffer address in the main buffer*/
 				if (user_param->post_list == 1 && user_param->size <= (ctx->cycle_buffer / 2)) {
-						increase_loc_addr(ctx->wr[index].sg_list,user_param->size, ctx->scnt[index],
-								ctx->my_addr[index] + address_offset , 0, ctx->cache_line_size,
+						increase_loc_addr(ctx->wr[qp_index].sg_list,user_param->size, ctx->send_count[qp_index],
+								ctx->my_addr[qp_index] + address_offset , 0, ctx->cache_line_size,
 								ctx->cycle_buffer);
 
 					if (user_param->verb != SEND) {
-						increase_rem_addr(&ctx->wr[index], user_param->size,
-								ctx->scnt[index], ctx->rem_addr[index], user_param->verb,
+						increase_rem_addr(&ctx->wr[qp_index], user_param->size,
+								ctx->send_count[qp_index], ctx->rem_addr[qp_index], user_param->verb,
 								ctx->cache_line_size, ctx->cycle_buffer);
 					}
 				}
 
-				ctx->scnt[index] += user_param->post_list;
-				totscnt += user_param->post_list;
+				ctx->send_count[qp_index] += user_param->post_list;
+				total_send_count += user_param->post_list;
 
 				/* ask for completion on this wr */
 				if (user_param->post_list == 1 &&
-						(ctx->scnt[index]%user_param->cq_mod == user_param->cq_mod - 1 ||
-							(user_param->test_type == ITERATIONS && ctx->scnt[index] == user_param->iters - 1))) {
-						ctx->wr[index].send_flags |= IBV_SEND_SIGNALED;
-				}
-
-				/* Check if a full burst was sent. */
-				if (user_param->rate_limit_type == SW_RATE_LIMIT) {
-					burst_iter += user_param->post_list;
-					if (burst_iter >= user_param->burst_size) {
-						is_sending_burst = 0;
-					}
+						(ctx->send_count[qp_index]%user_param->cq_mod == user_param->cq_mod - 1 ||
+							(user_param->test_type == ITERATIONS && ctx->send_count[qp_index] == user_param->iters - 1))) {
+						ctx->wr[qp_index].send_flags |= IBV_SEND_SIGNALED;
 				}
 			}
 		}
 
-		if (totccnt < tot_iters || (user_param->test_type == DURATION &&  totccnt < totscnt)) {
+		// Poll Phase
+
+		if (total_recv_cqe_count < tot_iters || (user_param->test_type == DURATION &&  total_recv_cqe_count < total_send_count)) {
 				/* Make sure all completions from previous event were polled before waiting for another */
 				if (user_param->use_event && ne == 0) {
 					if (ctx_notify_events(ctx->send_channel)) {
@@ -3585,7 +3585,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 						wc_id = (int)wc[i].wr_id;
 
 						if (wc[i].status != IBV_WC_SUCCESS) {
-							NOTIFY_COMP_ERROR_SEND(wc[i],totscnt,totccnt);
+							NOTIFY_COMP_ERROR_SEND(wc[i],total_send_count,total_recv_cqe_count);
 							return_value = FAILURE;
 							goto cleaning;
 						}
@@ -3594,13 +3594,13 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 							fill = user_param->iters - ctx->ccnt[wc_id];
 						}
 						ctx->ccnt[wc_id] += fill;
-						totccnt += fill;
+						total_recv_cqe_count += fill;
 
 						if (user_param->noPeak == OFF) {
-							if (totccnt > tot_iters)
+							if (total_recv_cqe_count > tot_iters)
 								user_param->tcompleted[user_param->iters*num_of_qps - 1] = get_cycles();
 							else
-								user_param->tcompleted[totccnt-1] = get_cycles();
+								user_param->tcompleted[total_recv_cqe_count-1] = get_cycles();
 						}
 
 						if (user_param->test_type==DURATION && user_param->state == SAMPLE_STATE) {
@@ -3615,7 +3615,7 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					fprintf(stderr, "poll CQ failed %d\n",ne);
 					return_value = FAILURE;
 					goto cleaning;
-					}
+				}
 		}
 	}
 	if (user_param->noPeak == ON && user_param->test_type == ITERATIONS)
@@ -3915,31 +3915,31 @@ int run_iter_bw_infinitely(struct pingpong_context *ctx,struct perftest_paramete
 	/* main loop to run over all the qps and post each time n messages */
 		for (index = 0 ; index < num_of_qps ; index++) {
 
-			while ((ctx->scnt[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth) {
+			while ((ctx->send_count[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth) {
 				if (ctx->send_rcredit) {
 					uint32_t swindow = scnt_for_qp[index] + user_param->post_list - ctx->credit_buf[index];
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
 
-				if (user_param->post_list == 1 && (ctx->scnt[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)) {
+				if (user_param->post_list == 1 && (ctx->send_count[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)) {
 					ctx->wr[index].send_flags &= ~IBV_SEND_SIGNALED;
 				}
 
 				err = post_send_method(ctx, index, user_param);
 				if (err) {
-					fprintf(stderr,"Couldn't post send: %d scnt=%lu \n",index,ctx->scnt[index]);
+					fprintf(stderr,"Couldn't post send: %d scnt=%lu \n",index,ctx->send_count[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
-				ctx->scnt[index] += user_param->post_list;
+				ctx->send_count[index] += user_param->post_list;
 				scnt_for_qp[index] += user_param->post_list;
 				totscnt += user_param->post_list;
 
 				/* ask for completion on this wr */
 				if (user_param->post_list == 1 &&
-						(ctx->scnt[index]%user_param->cq_mod == user_param->cq_mod - 1 ||
-							(user_param->test_type == ITERATIONS && ctx->scnt[index] == user_param->iters - 1))) {
+						(ctx->send_count[index]%user_param->cq_mod == user_param->cq_mod - 1 ||
+							(user_param->test_type == ITERATIONS && ctx->send_count[index] == user_param->iters - 1))) {
 					ctx->wr[index].send_flags |= IBV_SEND_SIGNALED;
 				}
 			}
@@ -3951,7 +3951,7 @@ int run_iter_bw_infinitely(struct pingpong_context *ctx,struct perftest_paramete
 
 				for (i = 0; i < ne; i++) {
 					if (wc[i].status != IBV_WC_SUCCESS) {
-						NOTIFY_COMP_ERROR_SEND(wc[i],ctx->scnt[(int)wc[i].wr_id],ctx->scnt[(int)wc[i].wr_id]);
+						NOTIFY_COMP_ERROR_SEND(wc[i],ctx->send_count[(int)wc[i].wr_id],ctx->send_count[(int)wc[i].wr_id]);
 						return_value = FAILURE;
 						goto cleaning;
 					}
@@ -4208,15 +4208,15 @@ int run_iter_bi(struct pingpong_context *ctx,
 							totccnt < tot_iters || totrcnt < tot_iters ) {
 
 		for (index=0; index < num_of_qps; index++) {
-			while (before_first_rx == OFF && (ctx->scnt[index] < iters || user_param->test_type == DURATION) &&
-					((ctx->scnt[index] + scredit_for_qp[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth)) {
+			while (before_first_rx == OFF && (ctx->send_count[index] < iters || user_param->test_type == DURATION) &&
+					((ctx->send_count[index] + scredit_for_qp[index] - ctx->ccnt[index] + user_param->post_list) <= user_param->tx_depth)) {
 				if (ctx->send_rcredit) {
-					uint32_t swindow = ctx->scnt[index] + user_param->post_list - ctx->credit_buf[index];
+					uint32_t swindow = ctx->send_count[index] + user_param->post_list - ctx->credit_buf[index];
 					if (swindow >= user_param->rx_depth)
 						break;
 				}
-				if (user_param->post_list == 1 && (ctx->scnt[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)
-					&& !(ctx->scnt[index] == (user_param->iters - 1) && user_param->test_type == ITERATIONS)) {
+				if (user_param->post_list == 1 && (ctx->send_count[index] % user_param->cq_mod == 0 && user_param->cq_mod > 1)
+					&& !(ctx->send_count[index] == (user_param->iters - 1) && user_param->test_type == ITERATIONS)) {
 					ctx->wr[index].send_flags &= ~IBV_SEND_SIGNALED;
 				}
 				if (user_param->noPeak == OFF)
@@ -4228,22 +4228,22 @@ int run_iter_bi(struct pingpong_context *ctx,
 				err = post_send_method(ctx, index, user_param);
 
 				if (err) {
-					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",index,ctx->scnt[index]);
+					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",index,ctx->send_count[index]);
 					return_value = FAILURE;
 					goto cleaning;
 				}
 
 				if (user_param->post_list == 1 && user_param->size <= (ctx->cycle_buffer / 2)) {
-					increase_loc_addr(ctx->wr[index].sg_list,user_param->size,ctx->scnt[index],
+					increase_loc_addr(ctx->wr[index].sg_list,user_param->size,ctx->send_count[index],
 						ctx->my_addr[index],0,ctx->cache_line_size,ctx->cycle_buffer);
 				}
 
-				ctx->scnt[index] += user_param->post_list;
+				ctx->send_count[index] += user_param->post_list;
 				totscnt += user_param->post_list;
 
 				if (user_param->post_list == 1 &&
-					(ctx->scnt[index]%user_param->cq_mod == user_param->cq_mod - 1 ||
-						(user_param->test_type == ITERATIONS && ctx->scnt[index] == iters-1))) {
+					(ctx->send_count[index]%user_param->cq_mod == user_param->cq_mod - 1 ||
+						(user_param->test_type == ITERATIONS && ctx->send_count[index] == iters-1))) {
 
 					ctx->wr[index].send_flags |= IBV_SEND_SIGNALED;
 				}
@@ -4332,7 +4332,7 @@ int run_iter_bi(struct pingpong_context *ctx,
 						struct ibv_send_wr *bad_wr = NULL;
 						ctx->ctrl_buf[wc[i].wr_id] = rcnt_for_qp[wc[i].wr_id];
 
-						while ((ctx->scnt[wc[i].wr_id] + scredit_for_qp[wc[i].wr_id]) >= (user_param->tx_depth + ctx->ccnt[wc[i].wr_id])) {
+						while ((ctx->send_count[wc[i].wr_id] + scredit_for_qp[wc[i].wr_id]) >= (user_param->tx_depth + ctx->ccnt[wc[i].wr_id])) {
 							sne = ibv_poll_cq(ctx->send_cq, 1, &credit_wc);
 							if (sne > 0) {
 								if (credit_wc.status != IBV_WC_SUCCESS) {
