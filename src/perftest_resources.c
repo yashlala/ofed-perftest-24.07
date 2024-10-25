@@ -1124,6 +1124,7 @@ int alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_para
 	if (user_param->connection_type == UD)
 		ctx->buff_size += ctx->cache_line_size;
 
+	printf("shoop: user_param->memory_type = %d\n", user_param->memory_type);
 	ctx->memory = user_param->memory_create(user_param);
 
 	return SUCCESS;
