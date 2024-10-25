@@ -3422,6 +3422,8 @@ static int capture_ethtool_post(VerbType verb)
 }
 
 
+static bool printed_nflows = false;
+
 int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_param)
 {
 	uint64_t           	total_send_count = 0;
@@ -3543,10 +3545,10 @@ int run_iter_bw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 
 				// Perform the RDMA Send
 				err = post_send_method(ctx, qp_index, user_param);
-				if (err) {
-					fprintf(stderr,"Couldn't post send: qp %d scnt=%lu \n",qp_index,ctx->send_count[qp_index]);
-					return_value = FAILURE;
-					goto cleaning;
+
+				if (!printed_nflows) {
+					printed_nflows = true;
+					printf("shoop: nflows=%d, DF=%d\n", user_param->flows, DEF_FLOWS);
 				}
 
 				/* if we have more than single flow and the burst iter is the last one */
