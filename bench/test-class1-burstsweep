@@ -1,11 +1,8 @@
 #!/bin/zsh
 
-dir='class1-deepsweep'
+dir='class1-burstsweep'
 
 mkdir -p $dir
-
-#sudo cpupower frequency-set -g performance
-#ssh server -- sudo cpupower frequency-set -g performance
 
 function run () { 
 	local qp=$1
@@ -19,13 +16,11 @@ function run () {
 	mv /tmp/read.hwcounter.post "$dir/hwpost.read.$schema.out"
 	mv read.client.out "$dir/client.read.$schema.out"
 	mv read.server.out "$dir/server.read.$schema.out"
+	sleep 3s
 }
 
-
-#for txdepth in 2 4 8 16 32 64; do 
-for txdepth in 2 8 32; do 
-	for qp in 1 2 $(seq 4 4 64); do 
-		run $qp $txdepth $txdepth
-		sleep 3s
-	done
+local txdepth=1
+local postlist=1
+for qp in 1 2 4 8 16 32 64; do 
+	run $qp $txdepth $postlist
 done

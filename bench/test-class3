@@ -8,10 +8,12 @@ postlist=$txdepth
 
 for fhqp in 1 16 32 64; do 
 	for cnqp in 1 4 8; do 
-		local schema="fhqp${fhqp}-cnqp${cnqp}-tx${txdepth}-pl${postlist}"
-		./remread --qp $fhqp --tx-depth 1 --post_list 1 & 
-		./remwrite --qp $cnqp --tx-depth $txdepth --post_list $postlist & 
+		local schema="fhqp${fhqp}-cnqp${cnqp}-txd${txdepth}-pl${postlist}"
+		./remread --qp $fhqp --tx-depth 1 --post_list 1 &
+		./remwrite --qp $cnqp --tx-depth $txdepth --post_list $postlist &
 		wait
+
+		sleep 3
 
 		for type in read write; do
 			mv "/tmp/$type.hwcounter.pre" "$dir/hwpre.$type.$schema.out"

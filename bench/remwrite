@@ -1,15 +1,17 @@
 #!/bin/zsh
 
-mn_data_ip=10.10.1.2
-mn_ssh_name='server'
+mn_data_ip='10.10.10.202'
+mn_ssh_name='fbss4'
 
 # todo try --use-hugepages
 
 cmd=(
-	/users/yashlala/ofed-perftest-24.07.0/ib_write_bw 
+	timeout 
+	3m
+	/home/sslee/ofed-perftest-24.07/ib_write_bw 
 	--rdma_cm --mtu 4096 --size 4096 --rx-depth 1 
 	--report_gbits --report-both --noPeak --cpu_util
-	--duration 60
+	--duration 20
 	--port 17575
 #	--iters 500
 )
@@ -18,7 +20,7 @@ rm -f /tmp/write.hwcounter.{pre,post}
 
 ssh $mn_ssh_name -- $cmd $@ &>write.server.out &
 server_pid=$!
-sleep 1
+sleep 5
 
 $cmd $@ $mn_data_ip &>write.client.out 
 

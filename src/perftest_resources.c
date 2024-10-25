@@ -19,7 +19,7 @@
 #include <sys/stat.h>
 #endif
 
-#define MLX_IFACE "ens2f0np0"
+#define MLX_IFACE "enp7s0np0"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
