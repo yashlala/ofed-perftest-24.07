@@ -960,11 +960,11 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	{
 
 		if (num_of_retry == 0) {
-			fprintf(stderr, "Received %d times ADDR_ERROR\n",NUM_OF_RETRIES);
+			fprintf(stderr, "Received %d times ADDR_ERROR\n", NUM_OF_RETRIES);
 			return FAILURE;
 		}
 
-		if (rdma_resolve_addr(ctx->cm_id, source_ptr, (struct sockaddr *)&sin, 2000)) {
+		if (rdma_resolve_addr(ctx->cm_id, source_ptr, (struct sockaddr *) &sin, 2000)) {
 			fprintf(stderr, "rdma_resolve_addr failed\n");
 			return FAILURE;
 		}
@@ -993,7 +993,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 
 	if (user_param->tos != DEF_TOS) {
 
-		if (rdma_set_option(ctx->cm_id,RDMA_OPTION_ID,RDMA_OPTION_ID_TOS,&user_param->tos,sizeof(uint8_t))) {
+		if (rdma_set_option(ctx->cm_id, RDMA_OPTION_ID, RDMA_OPTION_ID_TOS, &user_param->tos,sizeof(uint8_t))) {
 			fprintf(stderr, " Set TOS option failed: %d\n",event->event);
 			return FAILURE;
 		}
@@ -1051,7 +1051,7 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	conn_param.rnr_retry_count = 7;
 
 	if (user_param->work_rdma_cm == OFF) {
-
+		//
 		if (post_one_recv_wqe(ctx)) {
 			fprintf(stderr, "Couldn't post send \n");
 			return 1;
@@ -1289,10 +1289,10 @@ int create_comm_struct(struct perftest_comm *comm,
 	comm->rdma_params->memory_create	= host_memory_create;
 
 	if (user_param->use_rdma_cm) {
-
 		MAIN_ALLOC(comm->rdma_ctx, struct pingpong_context, 1, free_rdma_params);
 		memset(comm->rdma_ctx, 0, sizeof(struct pingpong_context));
 
+		// Alert: Why only one qp? When does our setting matter?
 		comm->rdma_params->tx_depth = 1;
 		comm->rdma_params->rx_depth = 1;
 		comm->rdma_params->connection_type = RC;
@@ -1322,13 +1322,15 @@ int create_comm_struct(struct perftest_comm *comm,
 		}
 	}
 
-	if ((user_param->counter_ctx) && (counters_open(user_param->counter_ctx,
-		user_param->ib_devname, user_param->ib_port))) {
-		fprintf(stderr," Unable to access performance counters\n");
-		if (user_param->use_rdma_cm)
-			goto free_mem;
-		else
-			goto free_rdma_params;
+	if ((user_param->counter_ctx)) {
+		printf("doop: tried getting hwcounters\n");
+		if (counters_open(user_param->counter_ctx, user_param->ib_devname, user_param->ib_port)) {
+			fprintf(stderr," Unable to access performance counters\n");
+			if (user_param->use_rdma_cm)
+				 goto free_mem;
+			else
+				 goto free_rdma_params;
+		}
 	}
 
 	return SUCCESS;

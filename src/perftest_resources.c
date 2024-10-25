@@ -886,7 +886,7 @@ int create_rdma_resources(struct pingpong_context *ctx,
 	enum rdma_port_space port_space = (is_udp_ps) ? RDMA_PS_UDP : RDMA_PS_TCP;
 	struct rdma_cm_id **cm_id = (user_param->machine == CLIENT) ? &ctx->cm_id : &ctx->cm_id_control;
 
-	ctx->cm_channel = rdma_create_event_channel();
+	ctx->cm_channel = rdma_create_event_channel(); // acts like a file descriptor for events
 	if (ctx->cm_channel == NULL) {
 		fprintf(stderr, " rdma_create_event_channel failed\n");
 		return FAILURE;
@@ -973,6 +973,7 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
 
 	// This macro is enabled.
 #ifdef HAVE_AES_XTS
+	printf("shoop: This program has AES_XTS enabled.\n"); 
 	if(user_param->aes_xts){
 		struct mlx5dv_crypto_login_attr login_attr = {};
 		struct mlx5dv_context_attr attr = {};
@@ -1015,11 +1016,12 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
  ******************************************************************************/
 int alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_param)
 {
-	uint64_t tarr_size;
+	uint64_t tarr_size; // tarr => time arr?
 	int num_of_qps_factor;
 	ctx->cycle_buffer = user_param->cycle_buffer;
 	ctx->cache_line_size = user_param->cache_line_size;
 
+	// Alloc space for number of QPs.
 	ALLOC(user_param->port_by_qp, uint64_t, user_param->num_of_qps);
 
 	tarr_size = (user_param->noPeak) ? 1 : user_param->iters*user_param->num_of_qps;
@@ -1914,6 +1916,7 @@ static int verify_ooo_settings(struct pingpong_context *ctx,
 	}
 }
 #endif
+
 int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_param)
 {
 	int i;
@@ -2097,7 +2100,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 
 
 qps:
-	for(i = 0; i < qp_index; i++){
+	for(i = 0; i < qp_index; i++) {
 		ibv_destroy_qp(ctx->qp[i]);
 	}
 

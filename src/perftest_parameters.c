@@ -2135,6 +2135,7 @@ static int ctx_set_out_reads(struct ibv_context *context,
 	int num_user_reads = user_param->out_reads;
 
 	max_reads = get_device_max_reads(context, user_param);
+	printf("shoop: maximum out reads is: %d\n", max_reads);
 
 	if (num_user_reads > max_reads) {
 		printf(RESULT_LINE);
@@ -2168,6 +2169,7 @@ static void ctx_set_max_inline(struct ibv_context *context,struct perftest_param
 
 	// y: We don't set this flag during runtime, so ignore it.
 	if (user_param->inline_size == DEF_INLINE) {
+		printf("shoop: Program is looking for inlined RDMA!\n"); 
 		if (user_param->memory_type == MEMORY_CUDA){
 			user_param->inline_size = 0;
 			printf("Perftest doesn't supports CUDA tests with inline messages: inline size set to 0\n");
