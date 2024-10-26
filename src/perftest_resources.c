@@ -1631,6 +1631,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 
 	if (ctx->is_contig_supported == SUCCESS)
 	{
+		printf("shoop: contig RDMA allocation supported!\n");
 		ctx->buf[qp_index] = NULL;
 		flags |= (1 << 5);
 	} else if (ctx->memory->allocate_buffer(ctx->memory, user_param->cycle_buffer, ctx->buff_size,
