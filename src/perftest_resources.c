@@ -312,8 +312,8 @@ static inline int _new_post_send(struct pingpong_context *ctx,
 		ctx->qpx[index]->wr_id = wr->wr_id;
 		ctx->qpx[index]->wr_flags = wr->send_flags;
 
-		printf("shoop: writing laddr=0x%lx -> raddr=0x%lx\n",
-				wr->sg_list->addr, wr->wr.rdma.remote_addr);
+		// printf("shoop: writing laddr=0x%lx -> raddr=0x%lx\n",
+		// 		wr->sg_list->addr, wr->wr.rdma.remote_addr);
 
 		switch (op)
 		{
