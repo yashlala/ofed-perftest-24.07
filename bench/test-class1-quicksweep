@@ -12,7 +12,7 @@ function run () {
 
 	local schema="qp${qp}-txd${txdepth}-pl${postlist}"
 
-	./remread --qp $qp --tx-depth $txdepth --post_list $postlist
+	./rdma-helper read --qp $qp --tx-depth $txdepth --post_list $postlist
 	mv /tmp/read.hwcounter.pre "$dir/hwpre.read.$schema.out"
 	mv /tmp/read.hwcounter.post "$dir/hwpost.read.$schema.out"
 	mv read.client.out "$dir/client.read.$schema.out"

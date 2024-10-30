@@ -1,0 +1,33 @@
+#!/bin/zsh
+
+# Args: $0 {read,write} [--extra_flags]
+
+type=$1
+shift
+
+mn_data_ip='10.10.10.202'
+mn_ssh_name='fbss4'
+
+cmd=(
+	timeout 
+	3m
+	"/home/sslee/ofed-perftest-24.07/ib_${type}_bw"
+	--rdma_cm 
+	--mtu 4096 --size 4096 
+	--rx-depth 1 
+	--use_old_post_send     # Prefer `ibv_post_send()` to `ib_wr_*()` datapath API. 
+	--report_gbits --report-both --noPeak --cpu_util
+	--duration 20
+	--port 18515
+#	--iters 500
+)
+
+rm -f /tmp/$type.hwcounter.{pre,post}
+
+ssh $mn_ssh_name -- $cmd $@ &>$type.server.out &  
+server_pid=$! 
+sleep 5
+
+$cmd $@ $mn_data_ip &>$type.client.out 
+
+wait $server_pid
