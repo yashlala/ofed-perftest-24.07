@@ -5,10 +5,10 @@ setup-network
 mkdir -p class3
 
 dir='class3'
-txdepth=64
+txdepth=32
 postlist=$txdepth
 
-for fhqp in 1 16 32 64; do 
+for fhqp in 1 16 32 48; do 
 	for cnqp in 1 4 8; do 
 		local schema="fhqp${fhqp}-cnqp${cnqp}-txd${txdepth}-pl${postlist}"
 		./remread --qp $fhqp --tx-depth 1 --post_list 1 &
