@@ -1,5 +1,7 @@
 #!/bin/zsh
 
+setup-network
+
 mkdir -p class3
 
 dir='class3'
