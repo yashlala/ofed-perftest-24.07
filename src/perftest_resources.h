@@ -198,7 +198,7 @@ struct pingpong_context {
 	struct ibv_sge				*recv_sge_list;
 	struct ibv_send_wr			*wr;
 	struct ibv_recv_wr			*rwr;
-	uint64_t				size;
+	uint64_t				msg_size;
 	uint64_t				*my_addr;
 	uint64_t				*rx_buffer_addr;
 	uint64_t				*rem_addr;
@@ -831,11 +831,21 @@ static __inline int ctx_notify_send_recv_events(struct pingpong_context *ctx)
  *		prim_addr - The address of the original buffer.
  *		server_is_ud - Indication to weather we are in UD mode.
  */
-static __inline void increase_loc_addr(struct ibv_sge *sg,int size,uint64_t rcnt,uint64_t prim_addr,int server_is_ud, int cache_line_size, int cycle_buffer)
+static __inline void increase_loc_addr(
+		struct ibv_sge *sg,
+		int msg_size,
+		uint64_t send_count,
+		uint64_t prim_addr,
+		int server_is_ud,
+		int cache_line_size,
+		int cycle_buffer)
 {
-	sg->addr  += INC(size,cache_line_size);
+	// TODO: Update this function to mirror our kspace benchmarks.
+	// Step forward 64 Bytes
+	sg->addr += INC(msg_size,cache_line_size);
 
-	if ( ((rcnt+1) % (cycle_buffer/ INC(size,cache_line_size))) == 0 )
+	// Reset when we've broadcast
+	if ( ((send_count+1) % (cycle_buffer/ INC(msg_size,cache_line_size))) == 0 )
 		sg->addr = prim_addr;
 
 }

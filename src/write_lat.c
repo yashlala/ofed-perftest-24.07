@@ -259,7 +259,7 @@ int main(int argc, char *argv[])
 	if (user_param.test_method == RUN_ALL) {
 
 		for (i = 1; i < 24 ; ++i) {
-			user_param.size = (uint64_t)1 << i;
+			user_param.msg_size = (uint64_t)1 << i;
 
 			if (user_param.verb == WRITE_IMM) {
 				/* Post receive recv_wqes fo current message size */

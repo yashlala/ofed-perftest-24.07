@@ -453,7 +453,7 @@ struct perftest_parameters {
 	uint8_t				ib_port2;
 	int				mtu;
 	enum ibv_mtu			curr_mtu;
-	uint64_t			size;
+	uint64_t			msg_size;
 	int				req_size;
 	uint64_t			dct_key;
 	uint64_t			iters;
@@ -515,7 +515,7 @@ struct perftest_parameters {
 	int				rx_depth;
 	int				duplex;
 	int				noPeak;
-	int				cq_mod;
+	int				cq_mod; // decreases; when 0, request a cq
 	int				fill_count;
 	int				req_cq_mod;
 	int 				spec;

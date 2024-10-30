@@ -296,7 +296,7 @@ int main(int argc, char *argv[])
 
 		for (i = 1; i < 24 ; ++i) {
 
-			user_param.size = (uint64_t)1 << i;
+			user_param.msg_size = (uint64_t)1 << i;
 
 			if (user_param.machine == CLIENT || user_param.duplex)
 				ctx_set_send_wqes(&ctx,&user_param,rem_dest);

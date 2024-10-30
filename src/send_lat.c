@@ -406,11 +406,11 @@ int main(int argc, char *argv[])
 		if (user_param.connection_type == UD)
 			size_max_pow = (int)MSG_SZ_2_EXP(MTU_SIZE(user_param.curr_mtu)) + 1;
 		else if (user_param.connection_type == SRD)
-			size_max_pow = (int)MSG_SZ_2_EXP(user_param.size) + 1;
+			size_max_pow = (int)MSG_SZ_2_EXP(user_param.msg_size) + 1;
 
 		for (i = 1; i < size_max_pow ; ++i) {
 
-			user_param.size = (uint64_t)1 << i;
+			user_param.msg_size = (uint64_t)1 << i;
 
 			/* Post receive recv_wqes fo current message size */
 			if (ctx_set_recv_wqes(&ctx,&user_param)) {

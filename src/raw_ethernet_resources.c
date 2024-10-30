@@ -646,7 +646,7 @@ void create_raw_eth_pkt( struct perftest_parameters *user_param,
 	uint16_t eth_type = user_param->is_ethertype ? user_param->ethertype :
 		(user_param->is_client_ip || user_param->is_server_ip ?
 		 (user_param->raw_ipv6) ? IP6_ETHER_TYPE :
-		 IP_ETHER_TYPE : (ctx->size-RAWETH_ADDITION-vlan_tag_size));
+		 IP_ETHER_TYPE : (ctx->msg_size-RAWETH_ADDITION-vlan_tag_size));
 	if(user_param->is_client_port && user_param->is_server_port)
 		ip_next_protocol = (user_param->tcp ? TCP_PROTOCOL : UDP_PROTOCOL);
 
@@ -662,12 +662,12 @@ void create_raw_eth_pkt( struct perftest_parameters *user_param,
 			// cppcheck-suppress arithOperationsOnVoidPointer
 			eth_header = (void*)buf + pkt_offset;/* update the eth_header to next flow */
 			/* fill ctx buffer with same packets */
-			while ((flow_limit - INC(ctx->size, ctx->cache_line_size)) >= pkt_offset) {
+			while ((flow_limit - INC(ctx->msg_size, ctx->cache_line_size)) >= pkt_offset) {
 				build_pkt_on_buffer(eth_header, my_dest_info, rem_dest_info,
 						    user_param, ctx->memory, eth_type, ip_next_protocol,
-						    print_flag, ctx->size - RAWETH_ADDITION, i);
+						    print_flag, ctx->msg_size - RAWETH_ADDITION, i);
 				print_flag = PRINT_OFF;
-				pkt_offset += INC(ctx->size, ctx->cache_line_size);/* update the offset to next packet in same flow */
+				pkt_offset += INC(ctx->msg_size, ctx->cache_line_size);/* update the offset to next packet in same flow */
 				// cppcheck-suppress arithOperationsOnVoidPointer
 				eth_header = (void*)buf + pkt_offset;/* update the eth_header to next packet in same flow */
 			}
@@ -680,7 +680,7 @@ void create_raw_eth_pkt( struct perftest_parameters *user_param,
 			eth_header = (void*)buf + pkt_offset;
 			build_pkt_on_buffer(eth_header, my_dest_info, rem_dest_info,
 					    user_param, ctx->memory, eth_type, ip_next_protocol,
-					    PRINT_ON, ctx->size - RAWETH_ADDITION, i);
+					    PRINT_ON, ctx->msg_size - RAWETH_ADDITION, i);
 
 		}
 	}
@@ -1029,8 +1029,8 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 					goto cleaning;
 				}
 
-				if (user_param->post_list == 1 && user_param->size <= (ctx->cycle_buffer / 2)) {
-						increase_loc_addr(ctx->wr[index].sg_list, user_param->size,
+				if (user_param->post_list == 1 && user_param->msg_size <= (ctx->cycle_buffer / 2)) {
+						increase_loc_addr(ctx->wr[index].sg_list, user_param->msg_size,
 								  ctx->send_count[index], ctx->my_addr[index], 0,
 								  ctx->cache_line_size, ctx->cycle_buffer);
 				}
@@ -1120,9 +1120,9 @@ int run_iter_fw(struct pingpong_context *ctx,struct perftest_parameters *user_pa
 							goto cleaning;
 						}
 
-					if (SIZE(user_param->connection_type, user_param->size, !(int)user_param->machine) <= (ctx->cycle_buffer / 2)) {
+					if (SIZE(user_param->connection_type, user_param->msg_size, !(int)user_param->machine) <= (ctx->cycle_buffer / 2)) {
 						increase_loc_addr(ctx->rwr[0].sg_list,
-								user_param->size,
+								user_param->msg_size,
 								rwqe_sent,
 								ctx->rx_buffer_addr[0],user_param->connection_type,
 								ctx->cache_line_size,ctx->cycle_buffer);

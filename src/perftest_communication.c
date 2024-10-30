@@ -859,9 +859,9 @@ int set_up_connection(struct pingpong_context *ctx,
 		/* Each qp gives his receive buffer address.*/
 		my_dest[i].out_reads = user_param->out_reads;
 		if (user_param->mr_per_qp)
-			my_dest[i].vaddr = (uintptr_t)ctx->buf[i] + BUFF_SIZE(ctx->size,ctx->cycle_buffer);
+			my_dest[i].vaddr = (uintptr_t)ctx->buf[i] + BUFF_SIZE(ctx->msg_size,ctx->cycle_buffer);
 		else
-			my_dest[i].vaddr = (uintptr_t)ctx->buf[0] + (user_param->num_of_qps + i)*BUFF_SIZE(ctx->size,ctx->cycle_buffer);
+			my_dest[i].vaddr = (uintptr_t)ctx->buf[0] + (user_param->num_of_qps + i)*BUFF_SIZE(ctx->msg_size,ctx->cycle_buffer);
 
 		if (user_param->dualport==ON) {
 
@@ -1298,7 +1298,7 @@ int create_comm_struct(struct perftest_comm *comm,
 		comm->rdma_params->connection_type = RC;
 		comm->rdma_params->num_of_qps = 1;
 		comm->rdma_params->verb	= SEND;
-		comm->rdma_params->size = sizeof(struct pingpong_dest);
+		comm->rdma_params->msg_size = sizeof(struct pingpong_dest);
 		comm->rdma_ctx->context = NULL;
 
 		comm->rdma_ctx->memory = comm->rdma_params->memory_create(comm->rdma_params);
@@ -1307,6 +1307,7 @@ int create_comm_struct(struct perftest_comm *comm,
 
 		MAIN_ALLOC(comm->rdma_ctx->mr, struct ibv_mr*, user_param->num_of_qps, free_memory_ctx);
 		MAIN_ALLOC(comm->rdma_ctx->buf, void* , user_param->num_of_qps, free_mr);
+
 		MAIN_ALLOC(comm->rdma_ctx->qp,struct ibv_qp*,comm->rdma_params->num_of_qps, free_buf);
 		#ifdef HAVE_IBV_WR_API
 		MAIN_ALLOC(comm->rdma_ctx->qpx,struct ibv_qp_ex*,comm->rdma_params->num_of_qps, free_qp);
@@ -1924,11 +1925,11 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 		}
 	}
 
-	if (user_param->connection_type == UD && user_param->size > MTU_SIZE(user_param->curr_mtu)) {
+	if (user_param->connection_type == UD && user_param->msg_size > MTU_SIZE(user_param->curr_mtu)) {
 		if (user_param->test_method == RUN_ALL || !user_param->req_size) {
 			fprintf(stderr," Max msg size in UD is MTU %lu\n",MTU_SIZE(user_param->curr_mtu));
 			fprintf(stderr," Changing to this MTU\n");
-			user_param->size = MTU_SIZE(user_param->curr_mtu);
+			user_param->msg_size = MTU_SIZE(user_param->curr_mtu);
 		}
 		else
 		{
@@ -1937,13 +1938,13 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 		}
 	} else if (user_param->connection_type == RawEth) {
 		/* checking msg size in raw ethernet */
-		if (user_param->size > user_param->curr_mtu) {
+		if (user_param->msg_size > user_param->curr_mtu) {
 			fprintf(stderr," Max msg size in RawEth is MTU %d\n",user_param->curr_mtu);
 			fprintf(stderr," Changing msg size to this MTU\n");
-			user_param->size = user_param->curr_mtu;
-		} else if (user_param->size < RAWETH_MIN_MSG_SIZE) {
+			user_param->msg_size = user_param->curr_mtu;
+		} else if (user_param->msg_size < RAWETH_MIN_MSG_SIZE) {
 			printf(" Min msg size for RawEth is 64B - changing msg size to 64 \n");
-			user_param->size = RAWETH_MIN_MSG_SIZE;
+			user_param->msg_size = RAWETH_MIN_MSG_SIZE;
 		}
 	} else if (user_param->connection_type == SRD) {
 		if (user_param->verb == SEND) {
@@ -1955,12 +1956,12 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 			}
 
 			//coverity[uninit_use]
-			if (user_param->size > port_attr.max_msg_sz) {
+			if (user_param->msg_size > port_attr.max_msg_sz) {
 				if (user_param->test_method == RUN_ALL || !user_param->req_size) {
 					fprintf(stderr, " Max msg size is %u\n",
 						port_attr.max_msg_sz);
 					fprintf(stderr, " Changing to this size\n");
-					user_param->size = port_attr.max_msg_sz;
+					user_param->msg_size = port_attr.max_msg_sz;
 				} else {
 					fprintf(stderr," Max message size in SRD cannot be greater than %u \n",
 						port_attr.max_msg_sz);
@@ -1998,12 +1999,12 @@ int check_mtu(struct ibv_context *context,struct perftest_parameters *user_param
 #endif
 			}
 
-			if (user_param->size > efa_device_attr.max_rdma_size) {
+			if (user_param->msg_size > efa_device_attr.max_rdma_size) {
 				if (user_param->test_method == RUN_ALL || !user_param->req_size) {
 					fprintf(stderr, " Max RDMA request size is %u\n",
 						efa_device_attr.max_rdma_size);
 					fprintf(stderr, " Changing to this size\n");
-					user_param->size = efa_device_attr.max_rdma_size;
+					user_param->msg_size = efa_device_attr.max_rdma_size;
 				} else {
 					fprintf(stderr, " Max RDMA request size in SRD cannot be greater than %u\n",
 						efa_device_attr.max_rdma_size);

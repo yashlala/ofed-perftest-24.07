@@ -298,7 +298,7 @@ int main(int argc, char *argv[])
 
 		for (i = 1; i < 24 ; ++i) {
 
-			user_param.size = (uint64_t)1 << i;
+			user_param.msg_size = (uint64_t)1 << i;
 			ctx_set_send_wqes(&ctx,&user_param,rem_dest);
 
 			if (user_param.perform_warm_up) {

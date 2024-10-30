@@ -741,7 +741,7 @@ static void init_perftest_params(struct perftest_parameters *user_param)
 	user_param->ib_port2		= DEF_IB_PORT2;
 	user_param->link_type		= LINK_UNSPEC;
 	user_param->link_type2		= LINK_UNSPEC;
-	user_param->size		= (user_param->tst == BW ) ? DEF_SIZE_BW : DEF_SIZE_LAT;
+	user_param->msg_size		= (user_param->tst == BW ) ? DEF_SIZE_BW : DEF_SIZE_LAT;
 	user_param->tx_depth		= (user_param->tst == BW || user_param->tst == LAT_BY_BW ) ? DEF_TX_BW : DEF_TX_LAT;
 	user_param->qp_timeout		= DEF_QP_TIME;
 	user_param->test_method		= RUN_REGULAR;
@@ -834,7 +834,7 @@ static void init_perftest_params(struct perftest_parameters *user_param)
 
 	if (user_param->verb == ATOMIC) {
 		user_param->atomicType	= FETCH_AND_ADD;
-		user_param->size	= DEF_SIZE_ATOMIC;
+		user_param->msg_size	= DEF_SIZE_ATOMIC;
 	}
 
 	user_param->cpu_util			= 0;
@@ -1114,7 +1114,7 @@ static void force_dependecies(struct perftest_parameters *user_param)
 	 * we don't disable cq_mod for use_event, because having a lot of processes with use_event leads
 	 *     to bugs (probably due to issues with events processing, thus we have less events)
 	 */
-	if (user_param->size > MSG_SIZE_CQ_MOD_LIMIT &&
+	if (user_param->msg_size > MSG_SIZE_CQ_MOD_LIMIT &&
 		user_param->connection_type != UD &&
 		user_param->test_method != RUN_ALL &&
 		!user_param->use_event)
@@ -1145,9 +1145,9 @@ static void force_dependecies(struct perftest_parameters *user_param)
 		user_param->inline_size = 0;
 
 	if (user_param->test_method == RUN_ALL)
-		user_param->size = MAX_SIZE;
+		user_param->msg_size = MAX_SIZE;
 
-	if (user_param->verb == ATOMIC && user_param->size != DEF_SIZE_ATOMIC) {
+	if (user_param->verb == ATOMIC && user_param->msg_size != DEF_SIZE_ATOMIC) {
 		printf(RESULT_LINE);
 		printf("Message size cannot be changed for Atomic tests \n");
 		exit (1);
@@ -1559,7 +1559,7 @@ static void force_dependecies(struct perftest_parameters *user_param)
 			fprintf(stderr," aes_xts isn't supported on write_lat\n");
 			exit(1);
 		}
-		if((int)user_param->size <= user_param->inline_size) {
+		if((int)user_param->msg_size <= user_param->inline_size) {
 			printf(RESULT_LINE);
 			fprintf(stderr," aes_xts doesn't support Inline messages\n");
 			exit(1);
@@ -1745,7 +1745,7 @@ static void force_dependecies(struct perftest_parameters *user_param)
 		exit(1);
 	}
 
-	if (user_param->memory_type == MEMORY_CUDA && (int)user_param->size <= user_param->inline_size) {
+	if (user_param->memory_type == MEMORY_CUDA && (int)user_param->msg_size <= user_param->inline_size) {
 		printf(RESULT_LINE);
 		fprintf(stderr,"Perftest doesn't support CUDA tests with inline messages\n");
 		exit(1);
@@ -2631,9 +2631,9 @@ int parser(struct perftest_parameters *user_param,char *argv[], int argc)
 					  optarg[size_len-1] = '\0';
 					  size_factor = 1024*1024;
 				  }
-				  user_param->size = (uint64_t)strtol(optarg, NULL, 0) * size_factor;
+				  user_param->msg_size = (uint64_t)strtol(optarg, NULL, 0) * size_factor;
 				  user_param->req_size = 1;
-				  if (user_param->size < 1 || user_param->size > (UINT_MAX / 2)) {
+				  if (user_param->msg_size < 1 || user_param->msg_size > (UINT_MAX / 2)) {
 					  fprintf(stderr," Message Size should be between %d and %d\n",1,UINT_MAX/2);
 					  free(duplicates_checker);
 					  return FAILURE;
@@ -3372,24 +3372,24 @@ int check_link_and_mtu(struct ibv_context *context,struct perftest_parameters *u
 	else
 		user_param->out_reads = 1;
 
-	if (user_param->connection_type == UD && user_param->size > MTU_SIZE(user_param->curr_mtu)) {
+	if (user_param->connection_type == UD && user_param->msg_size > MTU_SIZE(user_param->curr_mtu)) {
 
 		if (user_param->test_method == RUN_ALL) {
 			fprintf(stderr," Max msg size in UD is MTU %lu\n",MTU_SIZE(user_param->curr_mtu));
 			fprintf(stderr," Changing to this MTU\n");
 		}
-		user_param->size = MTU_SIZE(user_param->curr_mtu);
+		user_param->msg_size = MTU_SIZE(user_param->curr_mtu);
 	}
 
 	/* checking msg size in raw ethernet */
 	if (user_param->connection_type == RawEth){
-		if (user_param->size > user_param->curr_mtu) {
+		if (user_param->msg_size > user_param->curr_mtu) {
 			fprintf(stderr," Max msg size in RawEth is MTU %d\n",user_param->curr_mtu);
 			fprintf(stderr," Changing msg size to this MTU\n");
-			user_param->size = user_param->curr_mtu;
-		} else if (user_param->size < RAWETH_MIN_MSG_SIZE) {
+			user_param->msg_size = user_param->curr_mtu;
+		} else if (user_param->msg_size < RAWETH_MIN_MSG_SIZE) {
 			printf(" Min msg size for RawEth is 64B - changing msg size to 64 \n");
-			user_param->size = RAWETH_MIN_MSG_SIZE;
+			user_param->msg_size = RAWETH_MIN_MSG_SIZE;
 		}
 	}
 
@@ -3661,7 +3661,7 @@ void print_report_bw (struct perftest_parameters *user_param, struct bw_report_d
 	}
 
 	run_inf_bi_factor = (user_param->duplex && user_param->test_method == RUN_INFINITELY) ? (user_param->verb == SEND ? 1 : 2) : 1 ;
-	tsize = run_inf_bi_factor * user_param->size;
+	tsize = run_inf_bi_factor * user_param->msg_size;
 	num_of_calculated_iters *= (user_param->test_type == DURATION) ? 1 : num_of_qps;
 	location_arr = (user_param->noPeak) ? 0 : num_of_calculated_iters - 1;
 	/* support in GBS format */
@@ -3687,7 +3687,7 @@ void print_report_bw (struct perftest_parameters *user_param, struct bw_report_d
 		memset(my_bw_rep, 0, sizeof(struct bw_report_data));
 	}
 
-	my_bw_rep->size = (unsigned long)user_param->size;
+	my_bw_rep->size = (unsigned long)user_param->msg_size;
 	my_bw_rep->iters = num_of_calculated_iters;
 	my_bw_rep->bw_peak = (double)peak_up/peak_down;
 	my_bw_rep->bw_avg = bw_avg;
@@ -3945,7 +3945,7 @@ void write_report_lat_to_file(int out_json_fd, struct perftest_parameters *user_
 		dprintf(out_json_fd, "\"avg_lat\": %lf\n",average);
 	else {
 		dprintf(out_json_fd, REPORT_FMT_LAT_JSON,
-				(unsigned long)user_param->size,
+				(unsigned long)user_param->msg_size,
 				user_param->iters,
 				delta[0] / cycles_rtt_quotient,
 				delta[measure_cnt] / cycles_rtt_quotient,
@@ -4063,7 +4063,7 @@ void print_report_lat (struct perftest_parameters *user_param)
 		printf("%lf\n",average);
 	else {
 		printf(REPORT_FMT_LAT,
-				(unsigned long)user_param->size,
+				(unsigned long)user_param->msg_size,
 				user_param->iters,
 				delta[0] / cycles_rtt_quotient,
 				delta[measure_cnt] / cycles_rtt_quotient,
@@ -4091,7 +4091,7 @@ void write_report_lat_duration_to_file (int out_json_fd, struct perftest_paramet
 	}
 	else {
 		dprintf(out_json_fd, REPORT_FMT_LAT_DUR_JSON,
-				user_param->size,
+				user_param->msg_size,
 				user_param->iters,
 				latency, tps);
 		dprintf(out_json_fd,  user_param->cpu_util_data.enable ?
@@ -4135,7 +4135,7 @@ void print_report_lat_duration (struct perftest_parameters *user_param)
 	}
 	else {
 		printf(REPORT_FMT_LAT_DUR,
-				user_param->size,
+				user_param->msg_size,
 				user_param->iters,
 				latency, tps);
 		printf( user_param->cpu_util_data.enable ? REPORT_EXT_CPU_UTIL : REPORT_EXT , calc_cpu_util(user_param));
