@@ -8,11 +8,11 @@ dir='class3'
 txdepth=32
 postlist=$txdepth
 
-for fhqp in 1 16 32 48; do 
+for fhqp in 1 16 32 64; do 
 	for cnqp in 1 4 8; do 
 		local schema="fhqp${fhqp}-cnqp${cnqp}-txd${txdepth}-pl${postlist}"
-		./remread --qp $fhqp --tx-depth 1 --post_list 1 &
-		./remwrite --qp $cnqp --tx-depth $txdepth --post_list $postlist &
+		./rdma-helper read --qp $fhqp --tx-depth 1 --post_list 1 &
+		./rdma-helper write --qp $cnqp --tx-depth $txdepth --post_list 1 &
 		wait
 
 		sleep 3
