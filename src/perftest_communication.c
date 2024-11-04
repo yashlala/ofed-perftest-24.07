@@ -992,7 +992,9 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	}
 
 	if (user_param->tos != DEF_TOS) {
-
+		// This should be about IP only (ip header field). And we use RoCE...which may go
+		// over IP depending on version?
+		printf("shoop: rdma_set_option(something); IMPORTANT for rdmacm\n");
 		if (rdma_set_option(ctx->cm_id, RDMA_OPTION_ID, RDMA_OPTION_ID_TOS, &user_param->tos,sizeof(uint8_t))) {
 			fprintf(stderr, " Set TOS option failed: %d\n",event->event);
 			return FAILURE;
@@ -1057,6 +1059,8 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 			return 1;
 		}
 	}
+
+	// #TODO HERE
 
 	if (rdma_connect(ctx->cm_id,&conn_param)) {
 		fprintf(stderr, "Function rdma_connect failed\n");
@@ -2308,6 +2312,7 @@ int rdma_cm_address_handler(struct pingpong_context *ctx,
 	char *error_message;
 
 	if (user_param->tos != DEF_TOS) {
+		printf("shoop: rdma_set_option(something).\n");
 		rc = rdma_set_option(cma_id, RDMA_OPTION_ID,
 			RDMA_OPTION_ID_TOS, &user_param->tos, sizeof(uint8_t));
 		if (rc) {

@@ -40,6 +40,87 @@ static enum ibv_wr_opcode opcode_atomic_array[] = {IBV_WR_ATOMIC_CMP_AND_SWP,IBV
 struct perftest_parameters* duration_param;
 struct check_alive_data check_alive_data;
 
+
+// y: GPT
+static const char *qp_state_to_string(enum ibv_qp_state state) {
+    switch (state) {
+        case IBV_QPS_RESET: return "IBV_QPS_RESET";
+        case IBV_QPS_INIT: return "IBV_QPS_INIT";
+        case IBV_QPS_RTR: return "IBV_QPS_RTR";
+        case IBV_QPS_RTS: return "IBV_QPS_RTS";
+        case IBV_QPS_SQD: return "IBV_QPS_SQD";
+        case IBV_QPS_SQE: return "IBV_QPS_SQE";
+        case IBV_QPS_ERR: return "IBV_QPS_ERR";
+        case IBV_QPS_UNKNOWN: return "IBV_QPS_UNKNOWN";
+        default: return "Unknown State";
+    }
+}
+
+static const char *mig_state_to_string(enum ibv_mig_state state) {
+    switch (state) {
+        case IBV_MIG_MIGRATED: return "IBV_MIG_MIGRATED";
+        case IBV_MIG_REARM: return "IBV_MIG_REARM";
+        case IBV_MIG_ARMED: return "IBV_MIG_ARMED";
+        default: return "Unknown Migration State";
+    }
+}
+
+static void print_ibv_qp_attr(struct ibv_qp_attr *attr) {
+    printf("qp_state: %s\n", qp_state_to_string(attr->qp_state));
+    printf("cur_qp_state: %s\n", qp_state_to_string(attr->cur_qp_state));
+    printf("path_mtu: %d\n", attr->path_mtu);
+    printf("path_mig_state: %s\n", mig_state_to_string(attr->path_mig_state));
+    printf("qkey: %u\n", attr->qkey);
+    printf("rq_psn: %u\n", attr->rq_psn);
+    printf("sq_psn: %u\n", attr->sq_psn);
+    printf("dest_qp_num: %u\n", attr->dest_qp_num);
+    printf("qp_access_flags: %u\n", attr->qp_access_flags);
+    printf("cap.max_send_wr: %u\n", attr->cap.max_send_wr);
+    printf("cap.max_recv_wr: %u\n", attr->cap.max_recv_wr);
+    printf("cap.max_send_sge: %u\n", attr->cap.max_send_sge);
+    printf("cap.max_recv_sge: %u\n", attr->cap.max_recv_sge);
+    printf("cap.max_inline_data: %u\n", attr->cap.max_inline_data);
+    printf("pkey_index: %u\n", attr->pkey_index);
+    printf("alt_pkey_index: %u\n", attr->alt_pkey_index);
+    printf("en_sqd_async_notify: %u\n", attr->en_sqd_async_notify);
+    printf("sq_draining: %u\n", attr->sq_draining);
+    printf("max_rd_atomic: %u\n", attr->max_rd_atomic);
+    printf("max_dest_rd_atomic: %u\n", attr->max_dest_rd_atomic);
+    printf("min_rnr_timer: %u\n", attr->min_rnr_timer);
+    printf("port_num: %u\n", attr->port_num);
+    printf("timeout: %u\n", attr->timeout);
+    printf("retry_cnt: %u\n", attr->retry_cnt);
+    printf("rnr_retry: %u\n", attr->rnr_retry);
+    printf("alt_port_num: %u\n", attr->alt_port_num);
+    printf("alt_timeout: %u\n", attr->alt_timeout);
+    printf("rate_limit: %u\n", attr->rate_limit);
+}
+
+// Helper function to print out the `flags` bitmask
+void print_ibv_modify_qp_flags(int flags) {
+    printf("flags: ");
+    if (flags & IBV_QP_STATE) printf("IBV_QP_STATE ");
+    if (flags & IBV_QP_CUR_STATE) printf("IBV_QP_CUR_STATE ");
+    if (flags & IBV_QP_EN_SQD_ASYNC_NOTIFY) printf("IBV_QP_EN_SQD_ASYNC_NOTIFY ");
+    if (flags & IBV_QP_ACCESS_FLAGS) printf("IBV_QP_ACCESS_FLAGS ");
+    if (flags & IBV_QP_PKEY_INDEX) printf("IBV_QP_PKEY_INDEX ");
+    if (flags & IBV_QP_PORT) printf("IBV_QP_PORT ");
+    if (flags & IBV_QP_QKEY) printf("IBV_QP_QKEY ");
+    if (flags & IBV_QP_AV) printf("IBV_QP_AV ");
+    if (flags & IBV_QP_PATH_MTU) printf("IBV_QP_PATH_MTU ");
+    if (flags & IBV_QP_TIMEOUT) printf("IBV_QP_TIMEOUT ");
+    if (flags & IBV_QP_RETRY_CNT) printf("IBV_QP_RETRY_CNT ");
+    if (flags & IBV_QP_RNR_RETRY) printf("IBV_QP_RNR_RETRY ");
+    if (flags & IBV_QP_RQ_PSN) printf("IBV_QP_RQ_PSN ");
+    if (flags & IBV_QP_MAX_QP_RD_ATOMIC) printf("IBV_QP_MAX_QP_RD_ATOMIC ");
+    if (flags & IBV_QP_ALT_PATH) printf("IBV_QP_ALT_PATH ");
+    if (flags & IBV_QP_MIN_RNR_TIMER) printf("IBV_QP_MIN_RNR_TIMER ");
+    if (flags & IBV_QP_SQ_PSN) printf("IBV_QP_SQ_PSN ");
+    if (flags & IBV_QP_MAX_DEST_RD_ATOMIC) printf("IBV_QP_MAX_DEST_RD_ATOMIC ");
+    if (flags & IBV_QP_RATE_LIMIT) printf("IBV_QP_RATE_LIMIT ");
+    printf("\n");
+}
+
 /******************************************************************************
  * Beginning
  ******************************************************************************/
@@ -769,6 +850,7 @@ static int ctx_xrc_srq_create(struct pingpong_context *ctx,
 		srq_init_attr.cq = ctx->send_cq;
 
 	srq_init_attr.pd = ctx->pd;
+	printf("shoop: ibv_create_srq_ex(something).\n");
 	ctx->srq = ibv_create_srq_ex(ctx->context, &srq_init_attr);
 	if (ctx->srq == NULL) {
 		fprintf(stderr, "Couldn't open XRC SRQ\n");
@@ -845,6 +927,7 @@ static struct ibv_qp *ctx_xrc_qp_create(struct pingpong_context *ctx,
 	}
 	#endif
 
+	printf("shoop: ibv_create_qp_ex(something).\n");
 	qp = ibv_create_qp_ex(ctx->context, &qp_init_attr);
 
 	return qp;
@@ -1552,14 +1635,16 @@ int create_reg_cqs(struct pingpong_context *ctx,
 		   struct perftest_parameters *user_param,
 		   int tx_buffer_depth, int need_recv_cq)
 {
-	ctx->send_cq = ibv_create_cq(ctx->context,tx_buffer_depth *
-					user_param->num_of_qps, NULL, ctx->send_channel, user_param->eq_num);
+	int cqe = tx_buffer_depth * user_param->num_of_qps;
+	printf("shoop: ibv_create_cq(ctx, cqe=%d, ctx=null, channel=something, comp_vector=something\n", cqe);
+	ctx->send_cq = ibv_create_cq(ctx->context, cqe, NULL, ctx->send_channel, user_param->eq_num);
 	if (!ctx->send_cq) {
 		fprintf(stderr, "Couldn't create CQ\n");
 		return FAILURE;
 	}
 
 	if (need_recv_cq) {
+		printf("shoop: ibv_create_cq but its recv so we dont care\n");
 		ctx->recv_cq = ibv_create_cq(ctx->context,user_param->rx_depth *
 						user_param->num_of_qps, NULL, ctx->recv_channel, user_param->eq_num);
 		if (!ctx->recv_cq) {
@@ -1659,7 +1744,7 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 #ifdef HAVE_REG_DMABUF_MR
 	/* Allocating Memory region and assigning our buffer to it. */
 	if (dmabuf_fd) {
-		printf("Calling ibv_reg_dmabuf_mr(offset=%lu, size=%lu, addr=%p, fd=%d) for QP #%d\n",
+		printf("shoop: calling ibv_reg_dmabuf_mr(offset=%lu, size=%lu, addr=%p, fd=%d) for QP #%d\n",
 			dmabuf_offset, ctx->buff_size, ctx->buf[qp_index], dmabuf_fd, qp_index);
 		ctx->mr[qp_index] = ibv_reg_dmabuf_mr(
 			ctx->pd, dmabuf_offset,
@@ -1681,6 +1766,8 @@ int create_single_mr(struct pingpong_context *ctx, struct perftest_parameters *u
 	else
 #endif
 	{
+		printf("shoop: calling ibv_reg_mr(...size=%lu) for QP #%d\n",
+				ctx->buff_size, qp_index);
 		ctx->mr[qp_index] = ibv_reg_mr(ctx->pd, ctx->buf[qp_index], ctx->buff_size, flags);
 		if (!ctx->mr[qp_index]) {
 			fprintf(stderr, "Couldn't allocate MR\n");
@@ -1972,6 +2059,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 	}
 
 	/* Allocating the Protection domain. */
+	printf("shoop: ibv_alloc_pd(don't care).\n");
 	ctx->pd = ibv_alloc_pd(ctx->context);
 	if (!ctx->pd) {
 		fprintf(stderr, "Couldn't allocate PD\n");
@@ -2068,6 +2156,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 		attr.pd = ctx->pd;
 
 		attr.srq_type = IBV_SRQT_BASIC;
+		printf("shoop: ibv_create_srq_ex(something).\n");
 		ctx->srq = ibv_create_srq_ex(ctx->context, &attr);
 		if (!ctx->srq)  {
 			fprintf(stderr, "Couldn't create SRQ\n");
@@ -2086,6 +2175,7 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 				.max_sge = 1
 			}
 		};
+		printf("shoop: ibv_create_srq(something).\n");
 		ctx->srq = ibv_create_srq(ctx->pd, &attr);
 		if (!ctx->srq)  {
 			fprintf(stderr, "Couldn't create SRQ\n");
@@ -2207,6 +2297,7 @@ int create_reg_qp_main(struct pingpong_context *ctx,
 	}
 	#ifdef HAVE_IBV_WR_API
 	if (!user_param->use_old_post_send) {
+		printf("shoop: calling ibv_qp_to_qp_ex...\n");
 		ctx->qpx[i] = ibv_qp_to_qp_ex(ctx->qp[i]);
 		#ifdef HAVE_MLX5DV
 		if (user_param->connection_type == DC)
@@ -2349,6 +2440,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		#ifdef HAVE_IBV_WR_API
 		if (!user_param->use_old_post_send)
 		{
+			printf("shoop: rdma_create_qp_ex(...). SHOULDNT HAPPEN .\n");
 			if (rdma_create_qp_ex(ctx->cm_id, &attr_ex))
 			{
 				fprintf(stderr, "Couldn't create rdma new QP - %s\n", strerror(errno));
@@ -2360,6 +2452,8 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		}
 		else
 		#endif
+		{
+			printf("shoop: rdma_create_qp(...). SHOULDNT HAPPEN .\n");
 			if (rdma_create_qp(ctx->cm_id, ctx->pd, &attr))
 			{
 				fprintf(stderr, "Couldn't create rdma old QP - %s\n", strerror(errno));
@@ -2368,6 +2462,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 			{
 				qp = ctx->cm_id->qp;
 			}
+		}
 
 	} else if (user_param->connection_type == SRD) {
 		#ifdef HAVE_SRD
@@ -2409,6 +2504,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 					}
 					#endif
 				}
+				printf("shoop: mlx5dv_create_qp(...); SHOULDNT HAPPEN .\n");
 				qp = mlx5dv_create_qp(ctx->context, &attr_ex, &attr_dv);
 			}
 			#ifdef HAVE_AES_XTS
@@ -2418,8 +2514,8 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 				attr_dv.comp_mask = MLX5DV_QP_INIT_ATTR_MASK_SEND_OPS_FLAGS;
 				attr_dv.send_ops_flags = MLX5DV_QP_EX_WITH_MKEY_CONFIGURE;
 				attr_dv.create_flags = MLX5DV_QP_CREATE_DISABLE_SCATTER_TO_CQE;
-				qp = mlx5dv_create_qp(ctx->context, &attr_ex, &attr_dv);
-			}
+				printf("shoop: mlx5dv_create_qp(...); SHOULDNT HAPPEN .\n");
+				qp = mlx5dv_create_qp(ctx->context, &attr_ex, &attr_dv); }
 			#endif // HAVE_AES_XTS
 			else
 			#endif // HAVE_MLX5DV
@@ -2432,11 +2528,26 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 			}
 			else
 			#endif //HAVE_HNSDV
+			{
+				 printf("shoop: ibv_create_qp_ex(something).\n");
 				qp = ibv_create_qp_ex(ctx->context, &attr_ex);
+			}
 		}
 		else
 		#endif // HAVE_IBV_WR_API
+		{
+			printf("shoop: ibv_create_qp(pd, send_cq=0x%p, recv_cq=0x%p, srq=0x%p, \n",
+					attr.send_cq, attr.recv_cq, attr.srq);
+			printf("  max_send_wr: %u\n", attr.cap.max_send_wr);
+			printf("  max_recv_wr: %u\n", attr.cap.max_recv_wr);
+			printf("  max_send_sge: %u\n", attr.cap.max_send_sge);
+			printf("  max_recv_sge: %u\n", attr.cap.max_recv_sge);
+			printf("  max_inline_data: %u\n", attr.cap.max_inline_data);
+			printf("  qp_type:: %u\n", attr.qp_type);
+			printf("  sq_sig_all: %u\n", attr.sq_sig_all);
+
 			qp = ibv_create_qp(ctx->pd, &attr);
+		}
 	}
 
 	if (qp == NULL && errno == ENOMEM) {
@@ -2519,8 +2630,11 @@ int ctx_modify_qp_to_init(struct ibv_qp *qp,struct perftest_parameters *user_par
 		}
 		flags |= IBV_QP_ACCESS_FLAGS;
 	}
-	ret = ibv_modify_qp(qp, &attr, flags);
 
+	printf("shoop: ibv_modify_qp(qp, \n");
+	ret = ibv_modify_qp(qp, &attr, flags);
+	print_ibv_qp_attr(&attr);
+	print_ibv_modify_qp_flags(flags);
 	if (ret) {
 		fprintf(stderr, "Failed to modify QP to INIT, ret=%d\n",ret);
 		return 1;
@@ -2543,6 +2657,7 @@ static int ctx_modify_qp_to_rtr(struct ibv_qp *qp,
 	int is_dc_server_side = 0;
 	int flags = IBV_QP_STATE;
 	int ooo_flags = 0;
+	int ret;
 
 	attr->qp_state = IBV_QPS_RTR;
 	attr->ah_attr.src_path_bits = 0;
@@ -2623,7 +2738,12 @@ static int ctx_modify_qp_to_rtr(struct ibv_qp *qp,
 
 	if (user_param->use_ooo)
 		flags |= ooo_flags;
-	return ibv_modify_qp(qp, attr, flags);
+
+	printf("shoop: ibv_modify_qp(qp, \n");
+	ret = ibv_modify_qp(qp, attr, flags);
+	print_ibv_qp_attr(attr);
+	print_ibv_modify_qp_flags(flags);
+	return ret;
 }
 
 /******************************************************************************
@@ -2724,6 +2844,7 @@ int ctx_connect(struct pingpong_context *ctx,
 				(user_param->connection_type == SRD && (user_param->verb == READ || user_param->verb == WRITE ||
 									user_param->verb == WRITE_IMM))) {
 
+			printf("shoop: ibv_create_ah(who cares).\n");
 			ctx->ah[i] = ibv_create_ah(ctx->pd,&(attr.ah_attr));
 
 			if (!ctx->ah[i]) {
@@ -5386,6 +5507,7 @@ int run_iter_fs(struct pingpong_context *ctx, struct perftest_parameters *user_p
 					user_param->tposted[tot_fs_cnt] = get_cycles();
 				else if (user_param->test_type == DURATION && duration_param->state == END_STATE)
 					break;
+				printf("shoop: ibv_create_flow(important stuff!!.\n");
 				flow_create_result[flow_index] =
 					ibv_create_flow(ctx->qp[qp_index], flow_rules[(qp_index * allocated_flows) + flow_index]);
 				if (user_param->test_type == ITERATIONS)
