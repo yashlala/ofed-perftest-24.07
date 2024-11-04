@@ -138,8 +138,8 @@ int main(int argc, char *argv[])
 	}
 
 	/* Getting the relevant context from the device */
-	ctx.context = ibv_open_device(ib_dev);
-	if (!ctx.context) {
+	ctx.ibv_context = ibv_open_device(ib_dev);
+	if (!ctx.ibv_context) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		goto free_devname;
@@ -147,19 +147,19 @@ int main(int argc, char *argv[])
 
 	/* Verify user parameters that require the device context,
 	 * the function will print the relevent error info. */
-	if (verify_params_with_device_context(ctx.context, &user_param)) {
+	if (verify_params_with_device_context(ctx.ibv_context, &user_param)) {
 		goto free_devname;
 	}
 
 	/* See if MTU and link type are valid and supported. */
-	if (check_link_and_mtu(ctx.context, &user_param)) {
+	if (check_link_and_mtu(ctx.ibv_context, &user_param)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		DEBUG_LOG(TRACE, "<<<<<<%s", __FUNCTION__);
 		goto free_devname;
 	}
 
 	/* Allocating arrays needed for the test. */
-	if (alloc_ctx(&ctx,&user_param)){
+	if (alloc_pp_ctx(&ctx,&user_param)){
 		fprintf(stderr, "Couldn't allocate context\n");
 		goto free_devname;
 	}

@@ -93,20 +93,20 @@ int main(int argc, char *argv[])
 	}
 
 	/* Getting the relevant context from the device */
-	ctx.context = ibv_open_device(ib_dev);
-	if (!ctx.context) {
+	ctx.ibv_context = ibv_open_device(ib_dev);
+	if (!ctx.ibv_context) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		goto free_devname;
 	}
 
 	/* Verify user parameters that require the device context,
 	 * the function will print the relevent error info. */
-	if (verify_params_with_device_context(ctx.context, &user_param)) {
+	if (verify_params_with_device_context(ctx.ibv_context, &user_param)) {
 		goto free_devname;
 	}
 
 	/* See if link type is valid and supported. */
-	if (check_link(ctx.context,&user_param)) {
+	if (check_link(ctx.ibv_context,&user_param)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		goto free_devname;
 	}
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
 	check_sys_data(&user_comm, &user_param);
 
 	/* See if MTU is valid and supported. */
-	if (check_mtu(ctx.context,&user_param, &user_comm)) {
+	if (check_mtu(ctx.ibv_context,&user_param, &user_comm)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		dealloc_comm_struct(&user_comm, &user_param);
 		goto free_devname;
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 	memset(rem_dest, 0, sizeof(struct pingpong_dest)*user_param.num_of_qps);
 
 	/* Allocating arrays needed for the test. */
-	if (alloc_ctx(&ctx,&user_param)){
+	if (alloc_pp_ctx(&ctx,&user_param)){
 		fprintf(stderr, "Couldn't allocate context\n");
 		goto free_mem;
 	}

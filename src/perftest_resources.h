@@ -170,7 +170,7 @@ struct pingpong_context {
 	struct rdma_event_channel		*cm_channel;
 	struct rdma_cm_id			*cm_id_control; // for server
 	struct rdma_cm_id			*cm_id; // for client
-	struct ibv_context			*context;
+	struct ibv_context			*ibv_context;
 	#ifdef HAVE_AES_XTS
 	struct mlx5dv_mkey			**mkey;
 	struct mlx5dv_dek			**dek;
@@ -342,7 +342,7 @@ int destroy_rdma_resources(struct pingpong_context *ctx,
  *
  * Return Value : SUCCESS, FAILURE.
  */
-int alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_param);
+int alloc_pp_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_param);
 
 /* dealloc_ctx
  *

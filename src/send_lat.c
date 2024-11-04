@@ -59,21 +59,21 @@ static int set_mcast_group(struct pingpong_context *ctx,
 {
 	struct ibv_port_attr port_attr;
 
-	if (ibv_query_gid(ctx->context,user_param->ib_port,user_param->gid_index,&mcg_params->port_gid)) {
+	if (ibv_query_gid(ctx->ibv_context,user_param->ib_port,user_param->gid_index,&mcg_params->port_gid)) {
 		return FAILURE;
 	}
 
-	if (ibv_query_pkey(ctx->context,user_param->ib_port,DEF_PKEY_IDX,&mcg_params->pkey)) {
+	if (ibv_query_pkey(ctx->ibv_context,user_param->ib_port,DEF_PKEY_IDX,&mcg_params->pkey)) {
 		return FAILURE;
 	}
 
-	if (ibv_query_port(ctx->context,user_param->ib_port,&port_attr)) {
+	if (ibv_query_port(ctx->ibv_context,user_param->ib_port,&port_attr)) {
 		return FAILURE;
 	}
 	mcg_params->sm_lid  = port_attr.sm_lid;
 	mcg_params->sm_sl   = port_attr.sm_sl;
 	mcg_params->ib_port = user_param->ib_port;
-	mcg_params->ib_ctx  = ctx->context;
+	mcg_params->ib_ctx  = ctx->ibv_context;
 	mcg_params->ib_devname = user_param->ib_devname;
 
 	if (!strcmp(link_layer_str(user_param->link_type),"IB")) {
@@ -213,20 +213,20 @@ int main(int argc, char *argv[])
 	}
 
 	/* Getting the relevant context from the device */
-	ctx.context = ctx_open_device(ib_dev, &user_param);
-	if (!ctx.context) {
+	ctx.ibv_context = ctx_open_device(ib_dev, &user_param);
+	if (!ctx.ibv_context) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		goto free_devname;
 	}
 
 	/* Verify user parameters that require the device context,
 	 * the function will print the relevent error info. */
-	if (verify_params_with_device_context(ctx.context, &user_param)) {
+	if (verify_params_with_device_context(ctx.ibv_context, &user_param)) {
 		goto free_devname;
 	}
 
 	/* See if link type is valid and supported. */
-	if (check_link(ctx.context,&user_param)) {
+	if (check_link(ctx.ibv_context,&user_param)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		goto free_devname;
 	}
@@ -255,7 +255,7 @@ int main(int argc, char *argv[])
 	check_sys_data(&user_comm, &user_param);
 
 	/* See if MTU is valid and supported. */
-	if (check_mtu(ctx.context,&user_param, &user_comm)) {
+	if (check_mtu(ctx.ibv_context,&user_param, &user_comm)) {
 		fprintf(stderr, " Couldn't get context for the device\n");
 		dealloc_comm_struct(&user_comm,&user_param);
 		return FAILURE;
@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
 	memset(rem_dest, 0, sizeof(struct pingpong_dest)*user_param.num_of_qps);
 
 	/* Allocating arrays needed for the test. */
-	if(alloc_ctx(&ctx,&user_param)){
+	if(alloc_pp_ctx(&ctx,&user_param)){
 		fprintf(stderr, "Couldn't allocate context\n");
 		goto free_mem;
 	}

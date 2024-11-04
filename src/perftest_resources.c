@@ -858,7 +858,7 @@ static int ctx_xrcd_create(struct pingpong_context *ctx,struct perftest_paramete
 	xrcd_init_attr.fd = ctx->fd;
 	xrcd_init_attr.oflags = O_CREAT ;
 
-	ctx->xrc_domain = ibv_open_xrcd(ctx->context,&xrcd_init_attr);
+	ctx->xrc_domain = ibv_open_xrcd(ctx->ibv_context,&xrcd_init_attr);
 	if (ctx->xrc_domain == NULL) {
 		fprintf(stderr,"Error opening XRC domain\n");
 		return FAILURE;
@@ -889,7 +889,7 @@ static int ctx_xrc_srq_create(struct pingpong_context *ctx,
 
 	srq_init_attr.pd = ctx->pd;
 	printf("shoop: ibv_create_srq_ex(something).\n");
-	ctx->srq = ibv_create_srq_ex(ctx->context, &srq_init_attr);
+	ctx->srq = ibv_create_srq_ex(ctx->ibv_context, &srq_init_attr);
 	if (ctx->srq == NULL) {
 		fprintf(stderr, "Couldn't open XRC SRQ\n");
 		return FAILURE;
@@ -966,7 +966,7 @@ static struct ibv_qp *ctx_xrc_qp_create(struct pingpong_context *ctx,
 	#endif
 
 	printf("shoop: ibv_create_qp_ex(something).\n");
-	qp = ibv_create_qp_ex(ctx->context, &qp_init_attr);
+	qp = ibv_create_qp_ex(ctx->ibv_context, &qp_init_attr);
 
 	return qp;
 }
@@ -1031,6 +1031,7 @@ int create_rdma_resources(struct pingpong_context *ctx,
 		return FAILURE;
 	}
 
+	//
 	if (rdma_create_id(ctx->cm_channel,cm_id,NULL,port_space)) {
 		fprintf(stderr,"rdma_create_id failed\n");
 		goto destroy_event_channel;
@@ -1153,7 +1154,7 @@ struct ibv_context* ctx_open_device(struct ibv_device *ib_dev, struct perftest_p
 /******************************************************************************
  *
  ******************************************************************************/
-int alloc_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_param)
+int alloc_pp_ctx(struct pingpong_context *ctx,struct perftest_parameters *user_param)
 {
 	uint64_t tarr_size; // tarr => time arr?
 	int num_of_qps_factor;
@@ -1494,7 +1495,7 @@ int destroy_ctx(struct pingpong_context *ctx,
 
 	if (user_param->use_rdma_cm == OFF) {
 
-		if (ibv_close_device(ctx->context)) {
+		if (ibv_close_device(ctx->ibv_context)) {
 			fprintf(stderr, "Failed to close device context\n");
 			test_result = 1;
 		}
@@ -1609,7 +1610,7 @@ static int check_odp_support(struct pingpong_context *ctx, struct perftest_param
 {
 	struct ibv_device_attr_ex dattr;
 	int conn = user_param->connection_type;
-	int ret = ibv_query_device_ex(ctx->context, NULL, &dattr);
+	int ret = ibv_query_device_ex(ctx->ibv_context, NULL, &dattr);
 
 	if (ret) {
 		fprintf(stderr, " Couldn't query device for On-Demand Paging capabilities.\n");
@@ -1675,7 +1676,7 @@ int create_reg_cqs(struct pingpong_context *ctx,
 {
 	int cqe = tx_buffer_depth * user_param->num_of_qps;
 	printf("shoop: ibv_create_cq(ctx, cqe=%d, ctx=null, channel=something, comp_vector=something\n", cqe);
-	ctx->send_cq = ibv_create_cq(ctx->context, cqe, NULL, ctx->send_channel, user_param->eq_num);
+	ctx->send_cq = ibv_create_cq(ctx->ibv_context, cqe, NULL, ctx->send_channel, user_param->eq_num);
 	if (!ctx->send_cq) {
 		fprintf(stderr, "Couldn't create CQ\n");
 		return FAILURE;
@@ -1683,7 +1684,7 @@ int create_reg_cqs(struct pingpong_context *ctx,
 
 	if (need_recv_cq) {
 		printf("shoop: ibv_create_cq but its recv so we dont care\n");
-		ctx->recv_cq = ibv_create_cq(ctx->context,user_param->rx_depth *
+		ctx->recv_cq = ibv_create_cq(ctx->ibv_context,user_param->rx_depth *
 						user_param->num_of_qps, NULL, ctx->recv_channel, user_param->eq_num);
 		if (!ctx->recv_cq) {
 			fprintf(stderr, "Couldn't create a receiver CQ\n");
@@ -2083,13 +2084,13 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 
 	/* Allocating event channels if requested. */
 	if (user_param->use_event) {
-		ctx->send_channel = ibv_create_comp_channel(ctx->context);
+		ctx->send_channel = ibv_create_comp_channel(ctx->ibv_context);
 		if (!ctx->send_channel) {
 			fprintf(stderr, "Couldn't create send completion channel\n");
 			return FAILURE;
 		}
 
-		ctx->recv_channel = ibv_create_comp_channel(ctx->context);
+		ctx->recv_channel = ibv_create_comp_channel(ctx->ibv_context);
 		if (!ctx->recv_channel) {
 			fprintf(stderr, "Couldn't create receive completion channel\n");
 			return FAILURE;
@@ -2098,57 +2099,12 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 
 	/* Allocating the Protection domain. */
 	printf("shoop: ibv_alloc_pd(don't care).\n");
-	ctx->pd = ibv_alloc_pd(ctx->context);
+	ctx->pd = ibv_alloc_pd(ctx->ibv_context);
 	if (!ctx->pd) {
 		fprintf(stderr, "Couldn't allocate PD\n");
 		goto comp_channel;
 	}
 
-	#ifdef HAVE_AES_XTS
-	if(user_param->aes_xts){
-		struct mlx5dv_dek_init_attr dek_attr = {};
-		struct mlx5dv_mkey_init_attr mkey_init_attr = {};
-
-		ctx->dek_number = 0;
-		dek_attr.key_size = MLX5DV_CRYPTO_KEY_SIZE_128;
-		dek_attr.has_keytag = 0;
-		dek_attr.key_purpose = MLX5DV_CRYPTO_KEY_PURPOSE_AES_XTS;
-		dek_attr.pd = ctx->pd;
-		dek_attr.opaque[0] = 0x11;
-		mkey_init_attr.pd = ctx->pd;
-		mkey_init_attr.create_flags = MLX5DV_MKEY_INIT_ATTR_FLAGS_INDIRECT |
-		MLX5DV_MKEY_INIT_ATTR_FLAGS_CRYPTO;
-
-		mkey_init_attr.max_entries = 1;
-		for(i = 0; i < user_param->data_enc_keys_number; i++) {
-
-			if (set_valid_dek(dek_attr.key, user_param)) {
-				fprintf(stderr, "Failed to set dek\n");
-				goto dek;
-			}
-
-			ctx->dek[i] = mlx5dv_dek_create(ctx->context, &dek_attr);
-
-			if(!ctx->dek[i]) {
-				fprintf(stderr, "Failed to create dek\n");
-				goto dek;
-			}
-
-			dek_index++;
-		}
-
-		for(i = 0; i < user_param->num_of_qps; i++) {
-			ctx->mkey[i] = mlx5dv_create_mkey(&mkey_init_attr);
-
-			if(!ctx->mkey[i]) {
-				fprintf(stderr, "Failed to create mkey\n");
-				goto mkey;
-			}
-
-			mkey_index++;
-		}
-	}
-	#endif
 
 	if (ctx->memory->init(ctx->memory)) {
 		fprintf(stderr, "Failed to init memory\n");
@@ -2166,67 +2122,12 @@ int ctx_init(struct pingpong_context *ctx, struct perftest_parameters *user_para
 
 	}
 
-	#ifdef HAVE_XRCD
-	if (user_param->use_xrc) {
-
-		if (ctx_xrcd_create(ctx,user_param)) {
-			fprintf(stderr, "Couldn't create XRC resources\n");
-			goto cqs;
-		}
-
-		if (ctx_xrc_srq_create(ctx,user_param)) {
-			fprintf(stderr, "Couldn't create SRQ XRC resources\n");
-			goto xrcd;
-		}
-	}
-	#endif
-
-	if (user_param->use_srq && user_param->connection_type == DC &&
-			(user_param->tst == LAT ||
-			user_param->machine == SERVER ||
-			user_param->duplex == ON))
-	{
-		struct ibv_srq_init_attr_ex attr;
-			memset(&attr, 0, sizeof(attr));
-		attr.comp_mask = IBV_SRQ_INIT_ATTR_TYPE | IBV_SRQ_INIT_ATTR_PD;
-		attr.attr.max_wr = user_param->rx_depth;
-		attr.attr.max_sge = 1;
-		attr.pd = ctx->pd;
-
-		attr.srq_type = IBV_SRQT_BASIC;
-		printf("shoop: ibv_create_srq_ex(something).\n");
-		ctx->srq = ibv_create_srq_ex(ctx->context, &attr);
-		if (!ctx->srq)  {
-			fprintf(stderr, "Couldn't create SRQ\n");
-			goto xrc_srq;
-		}
-	}
-
-	if (user_param->use_srq && user_param->connection_type != DC &&
-			!user_param->use_xrc && (user_param->tst == LAT ||
-			user_param->machine == SERVER || user_param->duplex == ON)) {
-
-		struct ibv_srq_init_attr attr = {
-			.attr = {
-				/* when using sreq, rx_depth sets the max_wr */
-				.max_wr  = user_param->rx_depth,
-				.max_sge = 1
-			}
-		};
-		printf("shoop: ibv_create_srq(something).\n");
-		ctx->srq = ibv_create_srq(ctx->pd, &attr);
-		if (!ctx->srq)  {
-			fprintf(stderr, "Couldn't create SRQ\n");
-			goto xrcd;
-		}
-	}
-
 	/*
 	* QPs creation in RDMA CM flow will be done separately.
 	* Unless, the function called with RDMA CM connection contexts,
 	* need to verify the call with the existence of ctx->cm_id.
 	*/
-	if (!(user_param->work_rdma_cm == OFF || ctx->cm_id))
+	if (!(user_param->work_rdma_cm == OFF || ctx->cm_id)) // taken the first time
 		return SUCCESS;
 
 	for (i=0; i < user_param->num_of_qps; i++) {
@@ -2333,23 +2234,6 @@ int create_reg_qp_main(struct pingpong_context *ctx,
 		fprintf(stderr, "Unable to create QP.\n");
 		return FAILURE;
 	}
-	#ifdef HAVE_IBV_WR_API
-	if (!user_param->use_old_post_send) {
-		printf("shoop: calling ibv_qp_to_qp_ex...\n");
-		ctx->qpx[i] = ibv_qp_to_qp_ex(ctx->qp[i]);
-		#ifdef HAVE_MLX5DV
-		if (user_param->connection_type == DC)
-		{
-			ctx->dv_qp[i] = mlx5dv_qp_ex_from_ibv_qp_ex(ctx->qpx[i]);
-		}
-		#ifdef HAVE_AES_XTS
-		if (user_param->aes_xts){
-			ctx->dv_qp[i] = mlx5dv_qp_ex_from_ibv_qp_ex(ctx->qpx[i]);
-		}
-		#endif
-		#endif
-	}
-	#endif
 
 	return SUCCESS;
 }
@@ -2503,92 +2387,7 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 			}
 		}
 
-	} else if (user_param->connection_type == SRD) {
-		#ifdef HAVE_SRD
-		#ifdef HAVE_IBV_WR_API
-		efa_attr.driver_qp_type = EFADV_QP_DRIVER_TYPE_SRD;
-		qp = efadv_create_qp_ex(ctx->context, &attr_ex,
-					&efa_attr, sizeof(efa_attr));
-		#else
-		qp = efadv_create_driver_qp(ctx->pd, &attr,
-					    EFADV_QP_DRIVER_TYPE_SRD);
-		#endif
-		#endif
-	} else {
-		#ifdef HAVE_IBV_WR_API
-		if (!user_param->use_old_post_send)
-		{
-			#ifdef HAVE_MLX5DV
-			if (user_param->connection_type == DC)
-			{
-				attr_dv.comp_mask |= MLX5DV_QP_INIT_ATTR_MASK_DC;
-
-				if (is_dc_server_side)
-				{
-					attr_ex.srq = ctx->srq;
-					attr_dv.dc_init_attr.dc_type = MLX5DV_DCTYPE_DCT;
-					attr_dv.dc_init_attr.dct_access_key = DC_KEY;
-					attr_ex.comp_mask &= ~IBV_QP_INIT_ATTR_SEND_OPS_FLAGS;
-				}
-				else
-				{
-					attr_dv.dc_init_attr.dc_type = MLX5DV_DCTYPE_DCI;
-					attr_dv.create_flags |= MLX5DV_QP_CREATE_DISABLE_SCATTER_TO_CQE;
-					attr_dv.comp_mask |= MLX5DV_QP_INIT_ATTR_MASK_QP_CREATE_FLAGS;
-					attr_ex.comp_mask |= IBV_QP_INIT_ATTR_SEND_OPS_FLAGS;
-					#ifdef HAVE_DCS
-					if (user_param->log_dci_streams) {
-						attr_dv.comp_mask |= MLX5DV_QP_INIT_ATTR_MASK_DCI_STREAMS;
-						attr_dv.dc_init_attr.dci_streams.log_num_concurent = user_param->log_dci_streams;
-					}
-					#endif
-				}
-				printf("shoop: mlx5dv_create_qp(...); SHOULDNT HAPPEN .\n");
-				qp = mlx5dv_create_qp(ctx->context, &attr_ex, &attr_dv);
-			}
-			#ifdef HAVE_AES_XTS
-			else if (user_param->aes_xts) {
-				attr_ex.cap.max_send_wr = user_param->tx_depth * 2;
-				attr_ex.cap.max_inline_data = AES_XTS_INLINE;
-				attr_dv.comp_mask = MLX5DV_QP_INIT_ATTR_MASK_SEND_OPS_FLAGS;
-				attr_dv.send_ops_flags = MLX5DV_QP_EX_WITH_MKEY_CONFIGURE;
-				attr_dv.create_flags = MLX5DV_QP_CREATE_DISABLE_SCATTER_TO_CQE;
-				printf("shoop: mlx5dv_create_qp(...); SHOULDNT HAPPEN .\n");
-				qp = mlx5dv_create_qp(ctx->context, &attr_ex, &attr_dv); }
-			#endif // HAVE_AES_XTS
-			else
-			#endif // HAVE_MLX5DV
-
-			#ifdef HAVE_HNSDV
-			if (user_param->congest_type) {
-				hns_attr.comp_mask = HNSDV_QP_INIT_ATTR_MASK_QP_CONGEST_TYPE;
-				hns_attr.congest_type = user_param->congest_type;
-				qp = hnsdv_create_qp(ctx->context, &attr_ex, &hns_attr);
-			}
-			else
-			#endif //HAVE_HNSDV
-			{
-				 printf("shoop: ibv_create_qp_ex(something).\n");
-				qp = ibv_create_qp_ex(ctx->context, &attr_ex);
-			}
-		}
-		else
-		#endif // HAVE_IBV_WR_API
-		{
-			printf("shoop: ibv_create_qp(pd, send_cq=0x%p, recv_cq=0x%p, srq=0x%p, \n",
-					attr.send_cq, attr.recv_cq, attr.srq);
-			printf("  max_send_wr: %u\n", attr.cap.max_send_wr);
-			printf("  max_recv_wr: %u\n", attr.cap.max_recv_wr);
-			printf("  max_send_sge: %u\n", attr.cap.max_send_sge);
-			printf("  max_recv_sge: %u\n", attr.cap.max_recv_sge);
-			printf("  max_inline_data: %u\n", attr.cap.max_inline_data);
-			printf("  qp_type:: %u\n", attr.qp_type);
-			printf("  sq_sig_all: %u\n", attr.sq_sig_all);
-
-			qp = ibv_create_qp(ctx->pd, &attr);
-		}
-	}
-
+	} 
 	if (qp == NULL && errno == ENOMEM) {
 		fprintf(stderr, "Requested QP size might be too big. Try reducing TX depth and/or inline size.\n");
 		fprintf(stderr, "Current TX depth is %d and inline size is %d .\n", user_param->tx_depth, user_param->inline_size);
@@ -5479,7 +5278,7 @@ int check_packet_pacing_support(struct pingpong_context *ctx)
 	struct ibv_device_attr_ex attr;
 	memset(&attr, 0, sizeof (struct ibv_device_attr_ex));
 
-	if (ibv_query_device_ex(ctx->context, NULL, &attr)) {
+	if (ibv_query_device_ex(ctx->ibv_context, NULL, &attr)) {
 		fprintf(stderr, "ibv_query_device_ex failed\n");
 		return FAILURE;
 	}
