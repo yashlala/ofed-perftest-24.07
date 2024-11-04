@@ -2475,6 +2475,8 @@ int rdma_cm_connection_request_handler(struct pingpong_context *ctx,
 		goto error_2;
 	}
 
+	printf("shoop: rdma_accept(cmid=%p, \n", ctx->cm_id);
+	print_rdma_conn_param(&conn_param);
 	rc = rdma_accept(ctx->cm_id, &conn_param);
 	if (rc) {
 		error_message = "Failed to accept RDMA CM connection.";
