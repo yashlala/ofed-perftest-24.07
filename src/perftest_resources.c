@@ -56,7 +56,8 @@ static const char *qp_state_to_string(enum ibv_qp_state state) {
     }
 }
 
-static const char *mig_state_to_string(enum ibv_mig_state state) {
+static const char *mig_state_to_string(enum ibv_mig_state state)
+{
     switch (state) {
         case IBV_MIG_MIGRATED: return "IBV_MIG_MIGRATED";
         case IBV_MIG_REARM: return "IBV_MIG_REARM";
@@ -65,7 +66,8 @@ static const char *mig_state_to_string(enum ibv_mig_state state) {
     }
 }
 
-static void print_ibv_qp_attr(struct ibv_qp_attr *attr) {
+static void print_ibv_qp_attr(struct ibv_qp_attr *attr)
+{
     printf("qp_state: %s\n", qp_state_to_string(attr->qp_state));
     printf("cur_qp_state: %s\n", qp_state_to_string(attr->cur_qp_state));
     printf("path_mtu: %d\n", attr->path_mtu);
@@ -97,7 +99,8 @@ static void print_ibv_qp_attr(struct ibv_qp_attr *attr) {
 }
 
 // Helper function to print out the `flags` bitmask
-void print_ibv_modify_qp_flags(int flags) {
+void print_ibv_modify_qp_flags(int flags)
+{
     printf("flags: ");
     if (flags & IBV_QP_STATE) printf("IBV_QP_STATE ");
     if (flags & IBV_QP_CUR_STATE) printf("IBV_QP_CUR_STATE ");
@@ -119,6 +122,41 @@ void print_ibv_modify_qp_flags(int flags) {
     if (flags & IBV_QP_MAX_DEST_RD_ATOMIC) printf("IBV_QP_MAX_DEST_RD_ATOMIC ");
     if (flags & IBV_QP_RATE_LIMIT) printf("IBV_QP_RATE_LIMIT ");
     printf("\n");
+}
+
+static const char *qp_type_to_string(enum ibv_qp_type type)
+{
+    switch (type) {
+        case IBV_QPT_RC: return "IBV_QPT_RC";
+        case IBV_QPT_UC: return "IBV_QPT_UC";
+        case IBV_QPT_UD: return "IBV_QPT_UD";
+        case IBV_QPT_RAW_PACKET: return "IBV_QPT_RAW_PACKET";
+        case IBV_QPT_XRC_SEND: return "IBV_QPT_XRC_SEND";
+        case IBV_QPT_XRC_RECV: return "IBV_QPT_XRC_RECV";
+        case IBV_QPT_DRIVER: return "IBV_QPT_DRIVER";
+        default: return "Unknown QP Type";
+    }
+}
+
+static void print_ibv_qp_init_attr(struct ibv_qp_init_attr *attr)
+{
+    printf("qp_context: %p\n", attr->qp_context);
+    printf("send_cq: %p\n", attr->send_cq);
+    printf("recv_cq: %p\n", attr->recv_cq);
+    printf("srq: %p\n", attr->srq);
+
+    // Print QP capabilities
+    printf("cap.max_send_wr: %u\n", attr->cap.max_send_wr);
+    printf("cap.max_recv_wr: %u\n", attr->cap.max_recv_wr);
+    printf("cap.max_send_sge: %u\n", attr->cap.max_send_sge);
+    printf("cap.max_recv_sge: %u\n", attr->cap.max_recv_sge);
+    printf("cap.max_inline_data: %u\n", attr->cap.max_inline_data);
+
+    // Print QP type
+    printf("qp_type: %s\n", qp_type_to_string(attr->qp_type));
+
+    // Print signaling mode
+    printf("sq_sig_all: %d\n", attr->sq_sig_all);
 }
 
 /******************************************************************************
@@ -2453,7 +2491,8 @@ struct ibv_qp* ctx_qp_create(struct pingpong_context *ctx,
 		else
 		#endif
 		{
-			printf("shoop: rdma_create_qp(...). SHOULDNT HAPPEN .\n");
+			printf("shoop: rdma_create_qp(cmid=0x%p)\n", ctx->cm_id);
+			print_ibv_qp_init_attr(&attr);
 			if (rdma_create_qp(ctx->cm_id, ctx->pd, &attr))
 			{
 				fprintf(stderr, "Couldn't create rdma old QP - %s\n", strerror(errno));

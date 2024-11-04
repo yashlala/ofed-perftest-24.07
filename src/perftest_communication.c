@@ -902,6 +902,20 @@ int set_up_connection(struct pingpong_context *ctx,
 	return 0;
 }
 
+
+static void print_rdma_conn_param(struct rdma_conn_param *param) {
+    // Print each field of the rdma_conn_param structure
+    printf("private_data: %p\n", param->private_data);
+    printf("private_data_len: %u\n", param->private_data_len);
+    printf("responder_resources: %u\n", param->responder_resources);
+    printf("initiator_depth: %u\n", param->initiator_depth);
+    printf("flow_control: %u\n", param->flow_control);
+    printf("retry_count: %u\n", param->retry_count);
+    printf("rnr_retry_count: %u\n", param->rnr_retry_count);
+    printf("srq: %u\n", param->srq);
+    printf("qp_num: %u\n", param->qp_num);
+}
+
 /******************************************************************************
  *
  ******************************************************************************/
@@ -1061,6 +1075,9 @@ int rdma_client_connect(struct pingpong_context *ctx,struct perftest_parameters 
 	}
 
 	// #TODO HERE
+
+	printf("shoop: rdma_connect(cmid=0x%p,\n", ctx->cm_id);
+	print_rdma_conn_param(&conn_param);
 
 	if (rdma_connect(ctx->cm_id,&conn_param)) {
 		fprintf(stderr, "Function rdma_connect failed\n");
